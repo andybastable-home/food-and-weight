@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Food and Weight">
+  <rect width="512" height="512" rx="112" fill="#3f7f6a"/>
+  <path d="M128 384 C 128 224, 224 128, 384 128 C 384 288, 288 384, 128 384 Z" fill="#fef9f0"/>
+  <path d="M148 364 L 364 148" stroke="#3f7f6a" stroke-width="14" stroke-linecap="round"/>
+</svg>
