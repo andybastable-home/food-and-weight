@@ -246,11 +246,16 @@ body {
   flex-wrap: wrap;
 }
 
+/* Force a deterministic two-row layout regardless of native control widths:
+   row 1 = input (full width); row 2 = time + Save, with Save filling whatever
+   remains. When there's no time input, Save goes full-width on row 2. */
 .entry-input-wrap {
   position: relative;
-  flex: 1 1 200px;
+  flex: 1 0 100%;
   min-width: 0;
 }
+
+.entry-form > .btn { flex: 1 1 auto; }
 
 .entry-input {
   width: 100%;
