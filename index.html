@@ -34,20 +34,14 @@
       </button>
     </section>
 
-    <form id="entry-form" class="entry-form" autocomplete="off">
-      <label class="visually-hidden" for="entry-input">What did you eat?</label>
-      <input
-        id="entry-input"
-        class="entry-input"
-        type="text"
-        name="entry"
-        placeholder="What did you eat?"
-        enterkeyhint="send"
-        maxlength="500"
-        required
-      >
-      <button type="submit" class="btn btn-primary">Save</button>
-    </form>
+    <nav class="tabs" role="tablist" aria-label="Entry type">
+      <button class="tab is-active" type="button" role="tab" data-tab="food" aria-selected="true">Food</button>
+      <button class="tab" type="button" role="tab" data-tab="weight" aria-selected="false">Weight</button>
+      <button class="tab" type="button" role="tab" data-tab="waist" aria-selected="false">Waist</button>
+      <button class="tab" type="button" role="tab" data-tab="workout" aria-selected="false">Workout</button>
+    </nav>
+
+    <div id="entry-form-container"></div>
 
     <section class="entries-section" aria-label="Entries">
       <ul id="entries-list" class="entries-list"></ul>
@@ -58,7 +52,7 @@
   </main>
 
   <footer class="app-footer">
-    <span>v0.1.0 &middot; offline-ready</span>
+    <span>v0.2.0 &middot; offline-ready</span>
   </footer>
 
   <script src="https://unpkg.com/dexie@4.4.2/dist/dexie.min.js"></script>
