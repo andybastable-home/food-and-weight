@@ -325,7 +325,12 @@ body {
   min-height: 48px;
   -webkit-appearance: none;
   appearance: none;
-  flex: 0 0 auto;
+  /* Pin width — Android Chrome's native time picker otherwise wants ~170px
+     and crowds the Save button. 110px fits "HH:MM" + the small clock icon. */
+  flex: 0 0 110px;
+  width: 110px;
+  min-width: 0;
+  max-width: 110px;
 }
 
 .time-input:focus {
