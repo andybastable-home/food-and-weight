@@ -9,12 +9,15 @@
 // Paste your OAuth Client ID from Google Cloud Console here.
 const CLIENT_ID = '58841586776-lbkpi48lsk19rb3e2d8icfcvammotacs.apps.googleusercontent.com';
 
-// drive.file: app can only see/edit files it created. Sheets API works
-// against this scope without needing the broader 'spreadsheets' scope.
-const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+// drive.file:  app can only see/edit files it created.
+// openid+email: lets us read the user's email so we can pin subsequent
+//               silent requests to the same account (skips the account
+//               picker on phones with multiple Google accounts).
+const SCOPE = 'https://www.googleapis.com/auth/drive.file openid email';
 
 // Survives reloads so we don't create a new sheet every time.
 const SHEET_ID_KEY = 'fw.spike.sheetId';
+const EMAIL_KEY = 'fw.spike.email';
 
 let tokenClient = null;
 let accessToken = null;
@@ -39,6 +42,10 @@ function log(msg) {
 function getSheetId() { return localStorage.getItem(SHEET_ID_KEY); }
 function setSheetId(id) { localStorage.setItem(SHEET_ID_KEY, id); }
 function clearSheetId() { localStorage.removeItem(SHEET_ID_KEY); }
+
+function getEmail() { return localStorage.getItem(EMAIL_KEY); }
+function setEmail(e) { localStorage.setItem(EMAIL_KEY, e); }
+function clearEmail() { localStorage.removeItem(EMAIL_KEY); }
 
 function tokenValid() {
   return !!accessToken && Date.now() < tokenExpiresAt;
@@ -114,8 +121,28 @@ function requestToken({ silent }) {
       setTimeout(settle(() => reject(new Error('silent attempt timed out (8s)'))), 8000);
     }
 
-    tokenClient.requestAccessToken({ prompt: silent ? '' : 'consent' });
+    const params = { prompt: silent ? '' : 'consent' };
+    const hint = getEmail();
+    if (hint) params.hint = hint;
+    tokenClient.requestAccessToken(params);
   });
+}
+
+async function captureEmailIfNeeded() {
+  if (getEmail()) return;
+  try {
+    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.email) {
+      setEmail(data.email);
+      log(`Account pinned: ${data.email}`);
+    }
+  } catch (err) {
+    log(`Email capture failed: ${err.message}`);
+  }
 }
 
 async function ensureFreshToken() {
@@ -149,6 +176,7 @@ async function actionConnect() {
     log('Requesting token…');
     await requestToken({ silent: false });
     log('Token granted');
+    await captureEmailIfNeeded();
     render();
   } catch (err) {
     log(`Connect failed: ${err.message}`);
@@ -204,6 +232,7 @@ async function actionWriteRow() {
 
 function actionForget() {
   clearSheetId();
+  clearEmail();
   accessToken = null;
   tokenExpiresAt = 0;
   log('Local state cleared (sheet still exists in your Drive)');
