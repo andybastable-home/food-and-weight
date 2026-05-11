@@ -19,11 +19,11 @@
 3. If anything looks off (layout, friction, copy), flag for the design-iteration pass.
 
 ## Phase 1 acceptance
-- [ ] Logging an entry takes <5 seconds end to end on the phone
-- [ ] Entries persist across reloads and offline
-- [ ] Edit and delete work cleanly
-- [ ] Date nav lets me move back in time and the input still saves into the displayed day
-- [ ] Day-of-use feels lower friction than paper
+- [x] Logging an entry takes <5 seconds end to end on the phone
+- [x] Day-of-use feels lower friction than paper — confirmed 2026-05-11, Andy logged a full day of food
+- [ ] Entries persist across reloads and offline (assumed working, formally re-verify after a few days)
+- [ ] Edit and delete work cleanly (assumed working, re-verify in real use)
+- [ ] Date nav lets me move back in time and the input still saves into the displayed day (re-verify in real use)
 
 ## Known follow-ups (not blockers)
 - Delete uses browser `confirm()` — works but ugly. Replace with inline undo toast in a polish pass.
