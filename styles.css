@@ -522,6 +522,57 @@ body {
 }
 
 /* ------------------------------------------------------------------
+   Sheets sync spike panel — temporary, will be redesigned post-spike
+------------------------------------------------------------------ */
+.spike-panel {
+  margin: var(--space-5) 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+}
+
+.spike-panel > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: var(--space-1) 0;
+}
+
+.spike-body {
+  padding-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.spike-status {
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
+.spike-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.spike-log {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  max-height: 220px;
+  overflow: auto;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------------
    Footer
 ------------------------------------------------------------------ */
 .app-footer {
