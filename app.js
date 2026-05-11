@@ -7,6 +7,15 @@ if ('serviceWorker' in navigator) {
       console.error('Service worker registration failed', err);
     });
   });
+
+  // Auto-reload when a new SW takes control, so users see the latest version
+  // without a manual second refresh.
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
 }
 
 // ------------------------------------------------------------------
