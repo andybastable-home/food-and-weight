@@ -136,16 +136,27 @@ function requestToken({ silent }) {
 }
 
 async function captureEmailIfNeeded() {
-  if (getEmail()) return;
+  if (getEmail()) {
+    log('Email already pinned, skipping userinfo');
+    return;
+  }
+  log('Calling userinfo…');
   try {
     const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    log(`userinfo HTTP ${res.status}`);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`HTTP ${res.status}: ${body.slice(0, 120)}`);
+    }
     const data = await res.json();
+    log(`userinfo keys: ${Object.keys(data).join(',')}`);
     if (data.email) {
       setEmail(data.email);
       log(`Account pinned: ${data.email}`);
+    } else {
+      log('userinfo had no email field — scopes may be wrong');
     }
   } catch (err) {
     log(`Email capture failed: ${err.message}`);
