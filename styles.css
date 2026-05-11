@@ -321,11 +321,11 @@ body {
   position: relative;
   /* Width has to clear both the centered native digits AND the icon overlay
      on the right, since Android Chrome ignores CSS padding on the time
-     input. 130px leaves ~15px between the digits and the icon. */
-  flex: 0 0 130px;
-  width: 130px;
+     input. 150px leaves ~15px between the digits and the icon. */
+  flex: 0 0 150px;
+  width: 150px;
   min-width: 0;
-  max-width: 130px;
+  max-width: 150px;
 }
 
 .time-input {
