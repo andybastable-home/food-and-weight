@@ -333,6 +333,22 @@ function buildTimeInput(value) {
   return input;
 }
 
+function wrapTimeInput(input) {
+  const wrap = document.createElement('div');
+  wrap.className = 'time-input-wrap';
+  wrap.appendChild(input);
+  wrap.insertAdjacentHTML(
+    'beforeend',
+    '<span class="time-input-icon" aria-hidden="true">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+      + '<circle cx="12" cy="12" r="9"/>'
+      + '<polyline points="12 7 12 12 15 14"/>'
+      + '</svg>'
+      + '</span>'
+  );
+  return wrap;
+}
+
 function renderEntryForm() {
   const config = TYPES[currentTab];
   const form = document.createElement('form');
@@ -346,7 +362,7 @@ function renderEntryForm() {
   let timeInput = null;
   if (config.showTimeOnAdd) {
     timeInput = buildTimeInput(defaultTimeStr());
-    form.appendChild(timeInput);
+    form.appendChild(wrapTimeInput(timeInput));
   }
 
   const saveBtn = document.createElement('button');
@@ -416,7 +432,7 @@ function buildEditingRow(entry) {
   form.appendChild(wrap);
 
   const timeInput = buildTimeInput(timeStrFromMs(entry.timestamp));
-  form.appendChild(timeInput);
+  form.appendChild(wrapTimeInput(timeInput));
 
   const actions = document.createElement('div');
   actions.className = 'edit-actions';
