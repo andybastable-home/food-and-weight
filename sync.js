@@ -71,21 +71,29 @@ function ensureClient() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPE,
-    callback: () => {}, // overridden per request
+    callback: () => {},        // overridden per request
+    error_callback: () => {},  // overridden per request
   });
   return true;
 }
 
 // prompt:
-//   ''     — Google decides; first time shows consent, later runs silent.
-//   'none' — silent only; rejects if any user interaction would be needed.
+//   ''        — silent if prior consent exists; otherwise shows consent.
+//   'consent' — always shows consent screen.
 function requestToken({ silent }) {
   return new Promise((resolve, reject) => {
     if (!ensureClient()) {
       reject(new Error('GIS not ready'));
       return;
     }
-    tokenClient.callback = (resp) => {
+    let settled = false;
+    const settle = (fn) => (...args) => {
+      if (settled) return;
+      settled = true;
+      fn(...args);
+    };
+
+    tokenClient.callback = settle((resp) => {
       if (resp.error) {
         reject(new Error(`${resp.error}: ${resp.error_description || ''}`));
         return;
@@ -93,8 +101,20 @@ function requestToken({ silent }) {
       accessToken = resp.access_token;
       tokenExpiresAt = Date.now() + (resp.expires_in - 60) * 1000;
       resolve(resp);
-    };
-    tokenClient.requestAccessToken({ prompt: silent ? 'none' : '' });
+    });
+
+    // GIS routes popup/FedCM failures here, not through `callback`.
+    tokenClient.error_callback = settle((err) => {
+      reject(new Error(`${err?.type || 'error'}: ${err?.message || JSON.stringify(err)}`));
+    });
+
+    // Hard timeout so a silent attempt that GIS just never responds to
+    // surfaces as an error instead of leaving the UI hung.
+    if (silent) {
+      setTimeout(settle(() => reject(new Error('silent attempt timed out (8s)'))), 8000);
+    }
+
+    tokenClient.requestAccessToken({ prompt: silent ? '' : 'consent' });
   });
 }
 
