@@ -21,31 +21,47 @@
   </header>
 
   <main class="container">
-    <section class="hero">
-      <h1>Track what matters.</h1>
-      <p class="hero-sub">Food, weight, waist, workouts &mdash; in one place, on your phone, in seconds.</p>
+    <section class="date-nav" aria-label="Date navigation">
+      <button id="prev-day" class="date-nav-btn" type="button" aria-label="Previous day">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="date-nav-label">
+        <h1 id="date-label" class="date-nav-main">Today</h1>
+        <p id="date-sub" class="date-nav-sub"></p>
+      </div>
+      <button id="next-day" class="date-nav-btn" type="button" aria-label="Next day">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
+      </button>
     </section>
 
-    <section class="card placeholder">
-      <span class="placeholder-badge">Phase 0</span>
-      <h2>App shell installed</h2>
-      <p>You're looking at the foundation. The food diary lands next, then weight &amp; waist, then export.</p>
-    </section>
+    <form id="entry-form" class="entry-form" autocomplete="off">
+      <label class="visually-hidden" for="entry-input">What did you eat?</label>
+      <input
+        id="entry-input"
+        class="entry-input"
+        type="text"
+        name="entry"
+        placeholder="What did you eat?"
+        enterkeyhint="send"
+        maxlength="500"
+        required
+      >
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
 
-    <section class="card status-card">
-      <h2>Offline check</h2>
-      <p class="status-line">
-        <span class="status-dot" id="sw-dot" aria-hidden="true"></span>
-        <span id="sw-status">Checking service worker&hellip;</span>
-      </p>
-      <p class="hint">Toggle airplane mode and reload &mdash; this page should still appear.</p>
+    <section class="entries-section" aria-label="Entries">
+      <ul id="entries-list" class="entries-list"></ul>
+      <div id="empty-state" class="empty-state" hidden>
+        <p>Nothing logged yet for this day.</p>
+      </div>
     </section>
   </main>
 
   <footer class="app-footer">
-    <span>v0.0.1 &middot; offline-ready</span>
+    <span>v0.1.0 &middot; offline-ready</span>
   </footer>
 
+  <script src="https://unpkg.com/dexie@4.4.2/dist/dexie.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

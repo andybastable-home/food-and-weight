@@ -1,6 +1,8 @@
 // Bump CACHE_VERSION whenever shell files change so updates roll cleanly.
-const CACHE_VERSION = 'v0.0.1';
+const CACHE_VERSION = 'v0.1.0';
 const CACHE_NAME = `fw-shell-${CACHE_VERSION}`;
+
+const DEXIE_URL = 'https://unpkg.com/dexie@4.4.2/dist/dexie.min.js';
 
 const SHELL = [
   './',
@@ -9,6 +11,7 @@ const SHELL = [
   './app.js',
   './manifest.json',
   './icons/icon.svg',
+  DEXIE_URL,
 ];
 
 self.addEventListener('install', (event) => {

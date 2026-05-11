@@ -1,26 +1,34 @@
 # Status
 
 ## Current phase
-**Phase 0 — Project skeleton ✅ complete.** Ready for Phase 1.
+**Phase 1 — Food diary MVP** (built, awaiting on-phone verification)
 
 ## Last completed
-- Pages enabled on `main`, app served at `https://andybastable-home.github.io/food-and-weight/`.
-- Installed to Pixel 8a home screen, launches standalone, verified offline (airplane mode).
-- SVG-only icon proved sufficient for Android Chrome install — no PNG fallback needed.
+- Phase 0 ✅ — installed to Pixel 8a, offline confirmed.
+- Dexie 4.4.2 added via pinned CDN URL (cached by SW for offline use).
+- Diary UI built: date nav (prev/today-aware/next), entry input + Save, entries list with tap-to-edit (inline form with Save / Delete / Cancel). Empty state when no entries.
+- Service-worker `CACHE_VERSION` bumped to `v0.1.0`; Dexie URL added to shell list.
 
 ## Next step
-**Phase 1 — Food diary MVP**
-- Add Dexie.js (CDN script, no build step) and an `entries` table: `{id, type: 'food', text, timestamp}`.
-- Single-screen UI: large text input ("what did you eat?"), Save button, list of today's entries with timestamps.
-- Date navigation (prev/next day arrows; default to today).
-- Edit/delete entries.
-- Bump service-worker `CACHE_VERSION` and add Dexie URL to the shell list.
-- Verify: log entries throughout a day on the phone — friction should already beat paper.
+1. Open the Pages URL on Pixel 8a. The PWA should auto-update via the new service worker (may need one full close/reopen of the installed app for `skipWaiting` to take effect).
+2. **Smoke test on phone**:
+   - Add a few entries, confirm they appear with timestamps.
+   - Tap an entry → inline edit form appears. Edit and Save. Delete an entry (confirms via dialog).
+   - Use ‹ / › arrows to navigate to yesterday and back. Confirm "next" is disabled on today.
+   - Toggle airplane mode → reload → confirm UI still works and entries persist.
+3. If anything looks off (layout, friction, copy), flag for the design-iteration pass.
 
-## Phase 0 acceptance
-- [x] Pages URL serves the app over HTTPS
-- [x] App installs to home screen and launches standalone (no browser chrome)
-- [x] App loads with no network (service worker caches the shell)
+## Phase 1 acceptance
+- [ ] Logging an entry takes <5 seconds end to end on the phone
+- [ ] Entries persist across reloads and offline
+- [ ] Edit and delete work cleanly
+- [ ] Date nav lets me move back in time and the input still saves into the displayed day
+- [ ] Day-of-use feels lower friction than paper
+
+## Known follow-ups (not blockers)
+- Delete uses browser `confirm()` — works but ugly. Replace with inline undo toast in a polish pass.
+- Entries written to a past day are anchored to noon local; fine for MVP but visible in the time column. Could prompt for time when in past-day mode.
+- Phase 0 placeholder cards removed from `index.html`; no offline-status indicator anymore. SW still registers; check via Chrome DevTools → Application if ever in doubt.
 
 ## Design intent (set in Phase 0, refine later)
 - Calm sage-green accent on warm off-white; auto dark mode via `prefers-color-scheme`.
