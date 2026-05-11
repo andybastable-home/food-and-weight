@@ -334,7 +334,8 @@ function buildTimeInput(value) {
 }
 
 function wrapTimeInput(input) {
-  const wrap = document.createElement('div');
+  // <label> so tapping the icon also focuses the input and opens the picker.
+  const wrap = document.createElement('label');
   wrap.className = 'time-input-wrap';
   wrap.appendChild(input);
   wrap.insertAdjacentHTML(

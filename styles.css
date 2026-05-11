@@ -313,26 +313,28 @@ body {
   pointer-events: none;
 }
 
-/* Time input is wrapped so we can overlay our own clock icon — Android Chrome
-   ignores CSS background-image on <input type="time"> even with appearance:none,
-   so the icon has to be a sibling element. Pointer-events:none on the icon
-   means taps still hit the input and open the native picker. */
+/* The clock icon is a true sibling of the time input — overlaying it caused
+   Android to clip the last digit because its native time widget renders the
+   digits centered across the full input width regardless of padding. Wrapping
+   in a <label> means tapping the icon also focuses the input and opens the
+   picker. */
 .time-input-wrap {
-  position: relative;
-  /* Width has to clear both the centered native digits AND the icon overlay
-     on the right, since Android Chrome ignores CSS padding on the time
-     input. 150px leaves ~15px between the digits and the icon. */
-  flex: 0 0 150px;
-  width: 150px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 140px;
+  width: 140px;
   min-width: 0;
-  max-width: 150px;
+  max-width: 140px;
+  cursor: pointer;
 }
 
 .time-input {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
   font-size: 16px;
   padding: var(--space-3);
-  padding-right: 36px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
@@ -355,17 +357,11 @@ body {
 }
 
 .time-input-icon {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  flex: 0 0 16px;
   width: 16px;
   height: 16px;
   color: var(--color-text-muted);
   pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .time-input-icon svg {
