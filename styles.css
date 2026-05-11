@@ -316,8 +316,9 @@ body {
 .time-input {
   font-size: 16px;
   padding: var(--space-3);
+  padding-right: 36px;
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background-color: var(--color-surface);
   color: var(--color-text);
   border-radius: var(--radius-md);
   font-family: inherit;
@@ -326,11 +327,27 @@ body {
   -webkit-appearance: none;
   appearance: none;
   /* Pin width — Android Chrome's native time picker otherwise wants ~170px
-     and crowds the Save button. 110px fits "HH:MM" + the small clock icon. */
+     and crowds the Save button. 110px fits "HH:MM" + our clock icon. */
   flex: 0 0 110px;
   width: 110px;
   min-width: 0;
   max-width: 110px;
+  /* Custom clock icon — Android Chrome doesn't render a native one and
+     desktop Chrome's indicator (hidden below) varies in style. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237a8189' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><polyline points='12 7 12 12 15 14'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+}
+
+.time-input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .time-input {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><polyline points='12 7 12 12 15 14'/></svg>");
+  }
 }
 
 .time-input:focus {
