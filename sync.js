@@ -53,8 +53,10 @@ function tokenValid() {
 
 function render() {
   const sheetId = getSheetId();
+  const email = getEmail();
   ui.status.textContent =
-    `Token: ${tokenValid() ? '✓' : '—'}   ·   Sheet: ${sheetId ? '✓' : '—'}`;
+    `Token: ${tokenValid() ? '✓' : '—'}   ·   Sheet: ${sheetId ? '✓' : '—'}`
+      + `   ·   Pinned: ${email || '—'}`;
 
   if (sheetId) {
     ui.link.hidden = false;
@@ -78,6 +80,11 @@ function ensureClient() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPE,
+    // Lets Chrome mediate the sign-in via the FedCM credential API instead
+    // of a popup window. On Android PWAs (which run in an isolated WebView
+    // with no Google session cookies) this is the only path that can reach
+    // a system-level account silently.
+    use_fedcm_for_prompt: true,
     callback: () => {},        // overridden per request
     error_callback: () => {},  // overridden per request
   });
