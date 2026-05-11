@@ -277,7 +277,11 @@ function initOnLoad() {
   if (getSheetId()) {
     log('Trying silent re-auth…');
     requestToken({ silent: true })
-      .then(() => { log('Silent re-auth ok'); render(); })
+      .then(async () => {
+        log('Silent re-auth ok');
+        await captureEmailIfNeeded();
+        render();
+      })
       .catch((err) => log(`Silent re-auth failed: ${err.message}`));
   }
 }
