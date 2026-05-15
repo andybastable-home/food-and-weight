@@ -36,6 +36,11 @@
 - [ ] Disconnecting clears the local sheet ID + email pin and stops sync attempts.
 - [ ] Reload of the PWA never shows an OAuth UI once the user has connected once.
 
+## Phase 4 preview (designed, not started)
+- AI-driven calorie classification — text-only quick estimate + multimodal recipe/bowl flow.
+- Design + verified Gemini API shape + prompt templates: `notes/ai-calorie-spike.md`.
+- Do not start until Phase 3 Sheets sync is fully shipped.
+
 ## Known follow-ups (not blockers)
 - The `<details>` "Sheets sync (spike)" panel is intentionally ugly — replace as part of the design pass.
 - Spike uses `valueInputOption=USER_ENTERED` so Sheets parses dates/numbers; might switch to `RAW` once the column types are settled.

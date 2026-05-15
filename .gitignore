@@ -25,3 +25,7 @@ npm-debug.log*
 
 # Crash dumps
 *.stackdump
+
+# Spike artifacts at repo root (screenshots + Playwright MCP cache)
+/*.png
+.playwright-mcp/

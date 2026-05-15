@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git config *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(curl -sS https://api.github.com/repos/andybastable-home/food-and-weight)",
+      "Bash(command -v magick)",
+      "Bash(command -v convert)",
+      "Bash(command -v inkscape)",
+      "Bash(command -v rsvg-convert)",
+      "Bash(command -v node)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(curl -sS https://registry.npmjs.org/dexie/latest)",
+      "Bash(curl -sIL https://unpkg.com/dexie@4.4.2/dist/dexie.min.js)",
+      "Bash(npx --version)",
+      "Bash(where node.exe)",
+      "Bash(where npx.cmd)",
+      "Bash(cmd //c \"node --version\")",
+      "Bash(claude --version)",
+      "Bash(claude mcp *)"
+    ]
+  }
+}
