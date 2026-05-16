@@ -496,9 +496,7 @@ function renderEntryForm() {
     }
     const ok = await handleAdd(currentTab, formData);
     if (ok) {
-      input.value = '';
-      if (caloriesInput) caloriesInput.value = '';
-      input.focus();
+      renderEntryForm();
     }
   });
 
