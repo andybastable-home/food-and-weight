@@ -35,6 +35,7 @@ const TYPES = {
     placeholder: 'What did you eat?',
     inputKind: 'text',
     hasTimeCategory: true,
+    isCollapsible: true,
     formatDisplay: (e) => e.text,
   },
   weight: {
@@ -62,6 +63,7 @@ const TYPES = {
     placeholder: 'What did you do?',
     inputKind: 'text',
     hasTimeCategory: true,
+    isCollapsible: true,
     formatDisplay: (e) => e.text,
   },
 };
@@ -176,6 +178,7 @@ function getTimeCategory(date) {
 let currentDate = startOfDay(new Date());
 let currentTab = 'food';
 let editingId = null;
+let isFormOpen = false;
 
 const els = {
   dateLabel: document.getElementById('date-label'),
@@ -228,7 +231,15 @@ async function handleAdd(type, formData) {
     entry.timeCategory = formData.timeCategory || getTimeCategory(entry.timestamp);
   }
 
+  if (type === 'food' && formData.calories) {
+    const calories = parseFloat(formData.calories);
+    if (!Number.isNaN(calories) && calories > 0) {
+      entry.calories = calories;
+    }
+  }
+
   await db.entries.add(entry);
+  isFormOpen = false;
   await refreshList();
   return true;
 }
@@ -249,6 +260,13 @@ async function handleEditSave(originalEntry, formData) {
 
   if (config.hasTimeCategory && formData.timeCategory) {
     fields.timeCategory = formData.timeCategory;
+  }
+
+  if (originalEntry.type === 'food' && formData.calories) {
+    const calories = parseFloat(formData.calories);
+    if (!Number.isNaN(calories) && calories > 0) {
+      fields.calories = calories;
+    }
   }
 
   await db.entries.update(originalEntry.id, fields);
@@ -276,6 +294,7 @@ function cancelEdit() {
 function setDate(date) {
   currentDate = startOfDay(date);
   editingId = null;
+  isFormOpen = false;
   refreshAll();
 }
 
@@ -283,6 +302,7 @@ function setTab(tab) {
   if (currentTab === tab) return;
   currentTab = tab;
   editingId = null;
+  isFormOpen = false;
   refreshAll();
 }
 
@@ -376,6 +396,21 @@ function buildCategoryPills(selectedCategory) {
 
 function renderEntryForm() {
   const config = TYPES[currentTab];
+
+  if (config.isCollapsible && !isFormOpen) {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'btn btn-primary';
+    toggleBtn.style.width = '100%';
+    toggleBtn.textContent = `Log ${config.label}`;
+    toggleBtn.addEventListener('click', () => {
+      isFormOpen = true;
+      renderEntryForm();
+    });
+    els.formContainer.replaceChildren(toggleBtn);
+    return;
+  }
+
   const form = document.createElement('form');
   form.className = 'entry-form';
   form.autocomplete = 'off';
@@ -383,7 +418,19 @@ function renderEntryForm() {
   const input = buildPrimaryInput(config);
   const wrap = buildInputWrap(config, input);
 
+  let caloriesInput;
   if (currentTab === 'food') {
+    const caloriesWrap = document.createElement('div');
+    caloriesWrap.className = 'entry-input-wrap';
+
+    caloriesInput = document.createElement('input');
+    caloriesInput.type = 'number';
+    caloriesInput.name = 'calories';
+    caloriesInput.placeholder = 'Calories (optional)';
+    caloriesInput.min = '0';
+    caloriesInput.className = 'entry-input';
+    caloriesWrap.appendChild(caloriesInput);
+
     const aiBtn = document.createElement('button');
     aiBtn.type = 'button';
     aiBtn.className = 'ai-button';
@@ -392,10 +439,35 @@ function renderEntryForm() {
     aiBtn.addEventListener('click', () => {
       console.log('AI estimation coming soon');
     });
-    wrap.appendChild(aiBtn);
-  }
+    caloriesWrap.appendChild(aiBtn);
 
-  form.appendChild(wrap);
+    const cameraBtn = document.createElement('button');
+    cameraBtn.type = 'button';
+    cameraBtn.className = 'camera-button';
+    cameraBtn.textContent = '📷';
+    cameraBtn.setAttribute('aria-label', 'Take a photo');
+
+    const hiddenFileInput = document.createElement('input');
+    hiddenFileInput.type = 'file';
+    hiddenFileInput.accept = 'image/*';
+    hiddenFileInput.capture = 'environment';
+    hiddenFileInput.hidden = true;
+    hiddenFileInput.addEventListener('change', () => {
+      console.log('Photo captured but not yet processed');
+    });
+
+    cameraBtn.addEventListener('click', () => {
+      hiddenFileInput.click();
+    });
+
+    caloriesWrap.appendChild(cameraBtn);
+    caloriesWrap.appendChild(hiddenFileInput);
+
+    form.appendChild(wrap);
+    form.appendChild(caloriesWrap);
+  } else {
+    form.appendChild(wrap);
+  }
 
   if (config.hasTimeCategory) {
     const defaultCategory = getTimeCategory(Date.now());
@@ -419,9 +491,13 @@ function renderEntryForm() {
       const selected = form.querySelector('input[name="timeCategory"]:checked');
       formData.timeCategory = selected ? selected.value : undefined;
     }
+    if (currentTab === 'food' && caloriesInput) {
+      formData.calories = caloriesInput.value;
+    }
     const ok = await handleAdd(currentTab, formData);
     if (ok) {
       input.value = '';
+      if (caloriesInput) caloriesInput.value = '';
       input.focus();
     }
   });
@@ -466,6 +542,55 @@ function buildEditingRow(entry) {
   const wrap = buildInputWrap(config, input);
   form.appendChild(wrap);
 
+  let caloriesInput;
+  if (entry.type === 'food') {
+    const caloriesWrap = document.createElement('div');
+    caloriesWrap.className = 'entry-input-wrap';
+
+    caloriesInput = document.createElement('input');
+    caloriesInput.type = 'number';
+    caloriesInput.name = 'calories';
+    caloriesInput.placeholder = 'Calories (optional)';
+    caloriesInput.min = '0';
+    caloriesInput.className = 'entry-input';
+    caloriesInput.value = entry.calories ? String(entry.calories) : '';
+    caloriesWrap.appendChild(caloriesInput);
+
+    const aiBtn = document.createElement('button');
+    aiBtn.type = 'button';
+    aiBtn.className = 'ai-button';
+    aiBtn.textContent = '✨';
+    aiBtn.setAttribute('aria-label', 'AI estimation coming soon');
+    aiBtn.addEventListener('click', () => {
+      console.log('AI estimation coming soon');
+    });
+    caloriesWrap.appendChild(aiBtn);
+
+    const cameraBtn = document.createElement('button');
+    cameraBtn.type = 'button';
+    cameraBtn.className = 'camera-button';
+    cameraBtn.textContent = '📷';
+    cameraBtn.setAttribute('aria-label', 'Take a photo');
+
+    const hiddenFileInput = document.createElement('input');
+    hiddenFileInput.type = 'file';
+    hiddenFileInput.accept = 'image/*';
+    hiddenFileInput.capture = 'environment';
+    hiddenFileInput.hidden = true;
+    hiddenFileInput.addEventListener('change', () => {
+      console.log('Photo captured but not yet processed');
+    });
+
+    cameraBtn.addEventListener('click', () => {
+      hiddenFileInput.click();
+    });
+
+    caloriesWrap.appendChild(cameraBtn);
+    caloriesWrap.appendChild(hiddenFileInput);
+
+    form.appendChild(caloriesWrap);
+  }
+
   if (config.hasTimeCategory) {
     const currentCategory = entry.timeCategory || getTimeCategory(entry.timestamp);
     const pills = buildCategoryPills(currentCategory);
@@ -504,6 +629,9 @@ function buildEditingRow(entry) {
     if (config.hasTimeCategory) {
       const selected = form.querySelector('input[name="timeCategory"]:checked');
       formData.timeCategory = selected ? selected.value : undefined;
+    }
+    if (entry.type === 'food' && caloriesInput) {
+      formData.calories = caloriesInput.value;
     }
     handleEditSave(entry, formData);
   });
