@@ -438,24 +438,14 @@ function buildEntryRow(entry) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'entry-row';
+  btn.setAttribute('aria-label', `Edit entry: ${config.formatDisplay(entry)}`);
   btn.addEventListener('click', () => startEdit(entry.id));
 
   const display = document.createElement('span');
   display.className = config.inputKind === 'number' ? 'entry-value' : 'entry-text';
   display.textContent = config.formatDisplay(entry);
 
-  if (!config.hasTimeCategory) {
-    const time = document.createElement('time');
-    time.className = 'entry-time';
-    time.dateTime = new Date(entry.timestamp).toISOString();
-    time.textContent = formatTime(entry.timestamp);
-    btn.setAttribute('aria-label', `Edit entry from ${formatTime(entry.timestamp)}`);
-    btn.append(time, display);
-  } else {
-    btn.setAttribute('aria-label', `Edit entry: ${config.formatDisplay(entry)}`);
-    btn.append(display);
-  }
-
+  btn.append(display);
   li.append(btn);
   return li;
 }
