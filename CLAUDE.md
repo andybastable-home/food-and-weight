@@ -23,6 +23,17 @@ This project runs on Claude Pro with hard usage limits. Be deliberate about cont
 
 - **No paid subscriptions, ever.** This is a personal hobby project. Any solution that requires a paid plan (GitHub Pro, hosting tiers, paid APIs beyond free quotas, etc.) is off the table — find a free alternative or flag the constraint and ask. Free tiers of services (Gemini, Apps Script, GitHub Pages on public repos, Cloudflare/Netlify free) are fine.
 
+## Gemini as planning agent
+
+Andy occasionally (maybe regularly) uses Gemini Pro as a planning/context agent to maximize token efficiency across multiple models:
+
+1. Run `.scripts/export-context.ps1` (PowerShell) to generate three `.aicontext` files (claude, website, misc) by category.
+2. Paste the `.aicontext` files into Gemini as context (Gemini's 1M context window handles them easily).
+3. Gemini plans the implementation (designs, pseudocode, API shapes, decision rationale).
+4. Andy pastes the Gemini plan into a Claude conversation and Claude implements it (haiku/sonnet).
+
+This workflow trades off: Gemini's context capacity for Claude's implementation speed, leveraging each model's strength. The `.aicontext` files are git-ignored and regenerated on demand.
+
 ## Repo
 
 - Personal repo: `andybastable-home/food-and-weight` on github.com (public).

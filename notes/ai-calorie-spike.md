@@ -1,6 +1,8 @@
 # AI calorie classification — design spike
 
 > Written 2026-05-15 on Opus, intended as a reasoning gift for the Sonnet-driven implementation that follows. Captures the decisions and the verified API shape so the implementer doesn't have to re-derive them.
+>
+> **Updated 2026-05-16:** Model name (`gemini-2.5-flash-lite`) is current. When implementing Phase 4, check Google's published rate limits for the free tier — they may shift, but the decision to use the lite variant remains sound unless the constraints change materially.
 
 ## Goal
 
