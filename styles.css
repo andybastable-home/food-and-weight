@@ -18,6 +18,14 @@
   --color-danger: hsl(2 65% 52%);
   --color-danger-soft: hsl(2 70% 96%);
 
+  /* Time category colors */
+  --color-breakfast: hsl(40 60% 94%);
+  --color-morning: hsl(20 60% 94%);
+  --color-lunch: hsl(120 40% 94%);
+  --color-afternoon: hsl(200 50% 94%);
+  --color-dinner: hsl(260 40% 94%);
+  --color-evening: hsl(220 40% 92%);
+
   /* Spacing scale */
   --space-1: 4px;
   --space-2: 8px;
@@ -55,6 +63,14 @@
     --color-success: hsl(150 50% 55%);
     --color-danger: hsl(2 70% 62%);
     --color-danger-soft: hsl(2 30% 18%);
+
+    /* Time category colors (dark mode) */
+    --color-breakfast: hsl(40 30% 18%);
+    --color-morning: hsl(20 30% 18%);
+    --color-lunch: hsl(120 20% 18%);
+    --color-afternoon: hsl(200 30% 18%);
+    --color-dinner: hsl(260 20% 18%);
+    --color-evening: hsl(220 30% 16%);
   }
 }
 
@@ -313,61 +329,76 @@ body {
   pointer-events: none;
 }
 
-/* The clock icon is a true sibling of the time input — overlaying it caused
-   Android to clip the last digit because its native time widget renders the
-   digits centered across the full input width regardless of padding. Wrapping
-   in a <label> means tapping the icon also focuses the input and opens the
-   picker. */
-.time-input-wrap {
+
+.ai-button {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: var(--space-2);
+  min-height: auto;
+  transition: opacity 150ms ease;
+}
+
+.ai-button:hover { opacity: 0.7; }
+.ai-button:active { transform: translateY(-50%) scale(0.95); }
+
+.entry-input-wrap:has(.ai-button) .entry-input { padding-right: 48px; }
+
+.category-pills {
+  display: flex;
+  gap: var(--space-2);
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.category-pill {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex: 0 0 140px;
-  width: 140px;
-  min-width: 0;
-  max-width: 140px;
-  cursor: pointer;
-}
-
-.time-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: auto;
-  font-size: 16px;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--color-border);
   background: var(--color-surface);
-  color: var(--color-text);
-  border-radius: var(--radius-md);
-  font-family: inherit;
-  font-variant-numeric: tabular-nums;
-  min-height: 48px;
-  -webkit-appearance: none;
-  appearance: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+  font-size: 14px;
+  font-weight: 500;
+  user-select: none;
 }
 
-.time-input::-webkit-calendar-picker-indicator {
-  display: none;
-}
-
-.time-input:focus {
-  outline: none;
+.category-pill:hover {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
-.time-input-icon {
-  flex: 0 0 16px;
+.category-radio {
+  appearance: none;
+  -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  color: var(--color-text-muted);
-  pointer-events: none;
+  border: 2px solid var(--color-text-muted);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
 }
 
-.time-input-icon svg {
-  width: 16px;
-  height: 16px;
-  display: block;
+.category-radio:hover {
+  border-color: var(--color-accent);
+}
+
+.category-radio:checked {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.category-pill:has(.category-radio:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
 }
 
 /* ------------------------------------------------------------------
@@ -421,6 +452,23 @@ body {
   flex-direction: column;
   gap: var(--space-2);
 }
+
+.category-header {
+  margin: var(--space-4) 0 var(--space-2) 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0 var(--space-1);
+}
+
+.entry.category-breakfast { background: var(--color-breakfast); }
+.entry.category-morning { background: var(--color-morning); }
+.entry.category-lunch { background: var(--color-lunch); }
+.entry.category-afternoon { background: var(--color-afternoon); }
+.entry.category-dinner { background: var(--color-dinner); }
+.entry.category-evening { background: var(--color-evening); }
 
 .entry {
   background: var(--color-surface);
@@ -489,8 +537,6 @@ body {
 }
 
 .edit-form .entry-input-wrap { flex: 1 1 auto; }
-
-.edit-form .time-input { align-self: flex-start; }
 
 .edit-input { font-size: 16px; }
 

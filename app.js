@@ -34,7 +34,7 @@ const TYPES = {
     label: 'Food',
     placeholder: 'What did you eat?',
     inputKind: 'text',
-    showTimeOnAdd: true,
+    hasTimeCategory: true,
     formatDisplay: (e) => e.text,
   },
   weight: {
@@ -44,7 +44,7 @@ const TYPES = {
     inputStep: '0.1',
     inputMin: '0',
     unit: 'kg',
-    showTimeOnAdd: false,
+    hasTimeCategory: false,
     formatDisplay: (e) => `${formatNumber(e.value)} kg`,
   },
   waist: {
@@ -54,14 +54,14 @@ const TYPES = {
     inputStep: '0.1',
     inputMin: '0',
     unit: 'cm',
-    showTimeOnAdd: false,
+    hasTimeCategory: false,
     formatDisplay: (e) => `${formatNumber(e.value)} cm`,
   },
   workout: {
     label: 'Workout',
     placeholder: 'What did you do?',
     inputKind: 'text',
-    showTimeOnAdd: true,
+    hasTimeCategory: true,
     formatDisplay: (e) => e.text,
   },
 };
@@ -146,6 +146,30 @@ function combineDayAndTime(day, timeStr) {
   return d.getTime();
 }
 
+const TIME_CATEGORIES = ['Breakfast', 'Morning', 'Lunch', 'Afternoon', 'Dinner', 'Evening'];
+
+const CATEGORY_BOUNDARIES = {
+  Breakfast: { start: 4, end: 10 },
+  Morning: { start: 10, end: 12 },
+  Lunch: { start: 12, end: 14 },
+  Afternoon: { start: 14, end: 17 },
+  Dinner: { start: 17, end: 21 },
+  Evening: { start: 21, end: 4 },
+};
+
+function getTimeCategory(date) {
+  const hour = new Date(date).getHours();
+  for (const category of TIME_CATEGORIES) {
+    const { start, end } = CATEGORY_BOUNDARIES[category];
+    if (start <= end) {
+      if (hour >= start && hour < end) return category;
+    } else {
+      if (hour >= start || hour < end) return category;
+    }
+  }
+  return 'Evening';
+}
+
 // ------------------------------------------------------------------
 // State + DOM refs
 // ------------------------------------------------------------------
@@ -194,12 +218,14 @@ async function handleAdd(type, formData) {
     entry.value = value;
   }
 
-  if (config.showTimeOnAdd && formData.time) {
-    entry.timestamp = combineDayAndTime(currentDate, formData.time);
+  if (isSameDay(currentDate, new Date())) {
+    entry.timestamp = Date.now();
   } else {
-    entry.timestamp = isSameDay(currentDate, new Date())
-      ? Date.now()
-      : combineDayAndTime(currentDate, '12:00');
+    entry.timestamp = combineDayAndTime(currentDate, '12:00');
+  }
+
+  if (config.hasTimeCategory) {
+    entry.timeCategory = formData.timeCategory || getTimeCategory(entry.timestamp);
   }
 
   await db.entries.add(entry);
@@ -221,8 +247,8 @@ async function handleEditSave(originalEntry, formData) {
     fields.value = value;
   }
 
-  if (formData.time) {
-    fields.timestamp = combineDayAndTime(new Date(originalEntry.timestamp), formData.time);
+  if (config.hasTimeCategory && formData.timeCategory) {
+    fields.timeCategory = formData.timeCategory;
   }
 
   await db.entries.update(originalEntry.id, fields);
@@ -322,32 +348,30 @@ function buildInputWrap(config, input) {
   return wrap;
 }
 
-function buildTimeInput(value) {
-  const input = document.createElement('input');
-  input.className = 'time-input';
-  input.type = 'time';
-  input.name = 'time';
-  input.value = value;
-  input.required = true;
-  input.setAttribute('aria-label', 'Time');
-  return input;
-}
+function buildCategoryPills(selectedCategory) {
+  const container = document.createElement('div');
+  container.className = 'category-pills';
 
-function wrapTimeInput(input) {
-  // <label> so tapping the icon also focuses the input and opens the picker.
-  const wrap = document.createElement('label');
-  wrap.className = 'time-input-wrap';
-  wrap.appendChild(input);
-  wrap.insertAdjacentHTML(
-    'beforeend',
-    '<span class="time-input-icon" aria-hidden="true">'
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-      + '<circle cx="12" cy="12" r="9"/>'
-      + '<polyline points="12 7 12 12 15 14"/>'
-      + '</svg>'
-      + '</span>'
-  );
-  return wrap;
+  for (const category of TIME_CATEGORIES) {
+    const label = document.createElement('label');
+    label.className = 'category-pill';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'timeCategory';
+    radio.value = category;
+    radio.checked = category === selectedCategory;
+    radio.className = 'category-radio';
+
+    const span = document.createElement('span');
+    span.textContent = category;
+
+    label.appendChild(radio);
+    label.appendChild(span);
+    container.appendChild(label);
+  }
+
+  return container;
 }
 
 function renderEntryForm() {
@@ -358,12 +382,25 @@ function renderEntryForm() {
 
   const input = buildPrimaryInput(config);
   const wrap = buildInputWrap(config, input);
+
+  if (currentTab === 'food') {
+    const aiBtn = document.createElement('button');
+    aiBtn.type = 'button';
+    aiBtn.className = 'ai-button';
+    aiBtn.textContent = '✨';
+    aiBtn.setAttribute('aria-label', 'AI estimation coming soon');
+    aiBtn.addEventListener('click', () => {
+      console.log('AI estimation coming soon');
+    });
+    wrap.appendChild(aiBtn);
+  }
+
   form.appendChild(wrap);
 
-  let timeInput = null;
-  if (config.showTimeOnAdd) {
-    timeInput = buildTimeInput(defaultTimeStr());
-    form.appendChild(wrapTimeInput(timeInput));
+  if (config.hasTimeCategory) {
+    const defaultCategory = getTimeCategory(Date.now());
+    const pills = buildCategoryPills(defaultCategory);
+    form.appendChild(pills);
   }
 
   const saveBtn = document.createElement('button');
@@ -377,12 +414,14 @@ function renderEntryForm() {
     const formData = {
       text: input.name === 'text' ? input.value : undefined,
       value: input.name === 'value' ? input.value : undefined,
-      time: timeInput ? timeInput.value : undefined,
     };
+    if (config.hasTimeCategory) {
+      const selected = form.querySelector('input[name="timeCategory"]:checked');
+      formData.timeCategory = selected ? selected.value : undefined;
+    }
     const ok = await handleAdd(currentTab, formData);
     if (ok) {
       input.value = '';
-      if (timeInput) timeInput.value = defaultTimeStr();
       input.focus();
     }
   });
@@ -432,8 +471,11 @@ function buildEditingRow(entry) {
   const wrap = buildInputWrap(config, input);
   form.appendChild(wrap);
 
-  const timeInput = buildTimeInput(timeStrFromMs(entry.timestamp));
-  form.appendChild(wrapTimeInput(timeInput));
+  if (config.hasTimeCategory) {
+    const currentCategory = entry.timeCategory || getTimeCategory(entry.timestamp);
+    const pills = buildCategoryPills(currentCategory);
+    form.appendChild(pills);
+  }
 
   const actions = document.createElement('div');
   actions.className = 'edit-actions';
@@ -460,11 +502,15 @@ function buildEditingRow(entry) {
 
   form.addEventListener('submit', (ev) => {
     ev.preventDefault();
-    handleEditSave(entry, {
+    const formData = {
       text: input.name === 'text' ? input.value : undefined,
       value: input.name === 'value' ? input.value : undefined,
-      time: timeInput.value,
-    });
+    };
+    if (config.hasTimeCategory) {
+      const selected = form.querySelector('input[name="timeCategory"]:checked');
+      formData.timeCategory = selected ? selected.value : undefined;
+    }
+    handleEditSave(entry, formData);
   });
 
   li.appendChild(form);
@@ -489,10 +535,42 @@ function renderEntries(entries) {
     return;
   }
   els.empty.hidden = true;
-  for (const entry of entries) {
-    els.list.appendChild(
-      entry.id === editingId ? buildEditingRow(entry) : buildEntryRow(entry)
-    );
+
+  const config = TYPES[currentTab];
+
+  if (config.hasTimeCategory) {
+    const grouped = {};
+    for (const category of TIME_CATEGORIES) {
+      grouped[category] = [];
+    }
+    for (const entry of entries) {
+      const category = entry.timeCategory || getTimeCategory(entry.timestamp);
+      if (grouped[category]) {
+        grouped[category].push(entry);
+      }
+    }
+
+    for (const category of TIME_CATEGORIES) {
+      const categoryEntries = grouped[category];
+      if (categoryEntries.length === 0) continue;
+
+      const header = document.createElement('h3');
+      header.className = 'category-header';
+      header.textContent = category;
+      els.list.appendChild(header);
+
+      for (const entry of categoryEntries) {
+        const li = entry.id === editingId ? buildEditingRow(entry) : buildEntryRow(entry);
+        li.classList.add(`category-${category.toLowerCase()}`);
+        els.list.appendChild(li);
+      }
+    }
+  } else {
+    for (const entry of entries) {
+      els.list.appendChild(
+        entry.id === editingId ? buildEditingRow(entry) : buildEntryRow(entry)
+      );
+    }
   }
 }
 
