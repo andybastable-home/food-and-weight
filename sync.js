@@ -4,6 +4,8 @@ const SCOPE = 'https://www.googleapis.com/auth/drive.file openid email';
 const SHEET_ID_KEY = 'fw.spike.sheetId';
 const SHEET_GID_KEY = 'fw.spike.sheetGid';
 const EMAIL_KEY = 'fw.spike.email';
+const AI_CONTEXT_READY_KEY = 'fw.aiContext.ready';
+const AI_CONTEXT_STORAGE_KEY = 'fw_gemini_context';
 
 let tokenClient = null;
 let accessToken = null;
@@ -129,14 +131,19 @@ async function ensureSheet() {
     method: 'POST',
     body: JSON.stringify({
       properties: { title: 'Food & Weight log' },
-      sheets: [{ properties: { title: 'Entries' } }],
+      sheets: [
+        { properties: { title: 'Entries' } },
+        { properties: { title: 'AI_Context' } },
+      ],
     }),
   });
   setSheetId(data.spreadsheetId);
   setSheetGid(data.sheets[0].properties.sheetId);
+  localStorage.setItem(AI_CONTEXT_READY_KEY, '1');
   console.log('[sync] Sheet created:', data.spreadsheetId);
+  const sid = data.spreadsheetId;
   await apiCall(
-    `https://sheets.googleapis.com/v4/spreadsheets/${data.spreadsheetId}/values/Entries!A1:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Entries!A1:append?valueInputOption=RAW`,
     {
       method: 'POST',
       body: JSON.stringify({
@@ -144,6 +151,61 @@ async function ensureSheet() {
       }),
     }
   );
+  await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/AI_Context!A1:append?valueInputOption=RAW`,
+    { method: 'POST', body: JSON.stringify({ values: [['Diet Context Profile']] }) }
+  );
+}
+
+async function ensureAIContextSheet() {
+  if (!getSheetId()) return;
+  if (localStorage.getItem(AI_CONTEXT_READY_KEY)) return;
+  const sheetId = getSheetId();
+  try {
+    await apiCall(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'AI_Context' } } }] }),
+    });
+    await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/AI_Context!A1:append?valueInputOption=RAW`,
+      { method: 'POST', body: JSON.stringify({ values: [['Diet Context Profile']] }) }
+    );
+    console.log('[sync] AI_Context sheet added');
+  } catch (err) {
+    // Sheet already exists or other non-fatal error
+    console.log('[sync] AI_Context sheet check:', err.message.slice(0, 80));
+  }
+  localStorage.setItem(AI_CONTEXT_READY_KEY, '1');
+}
+
+async function pushContextToSheet(contextString) {
+  if (!getSheetId() || !tokenValid()) return;
+  const sheetId = getSheetId();
+  await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/AI_Context!A2?valueInputOption=RAW`,
+    { method: 'PUT', body: JSON.stringify({ values: [[contextString]] }) }
+  );
+  console.log('[sync] AI context pushed to sheet');
+}
+
+async function pullContextFromSheet() {
+  if (!getSheetId()) return;
+  if (localStorage.getItem(AI_CONTEXT_STORAGE_KEY)) return;
+  try {
+    const sheetId = getSheetId();
+    const data = await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/AI_Context!A2`
+    );
+    const val = data.values?.[0]?.[0];
+    if (val) {
+      localStorage.setItem(AI_CONTEXT_STORAGE_KEY, val);
+      const textarea = document.getElementById('cfg-ai-context');
+      if (textarea) textarea.value = val;
+      console.log('[sync] AI context pulled from sheet');
+    }
+  } catch (err) {
+    console.warn('[sync] pullContextFromSheet failed:', err.message);
+  }
 }
 
 // Writes entries to the sheet. Throws on failure so callers can decide whether to mark synced.
@@ -215,6 +277,8 @@ async function actionConnect() {
     console.log('[sync] Token granted');
     await captureEmailIfNeeded();
     await ensureSheet();
+    await ensureAIContextSheet();
+    await pullContextFromSheet();
     renderSyncUI();
     syncUnsyncedEntries().catch(() => {});
   } catch (err) {
@@ -226,6 +290,7 @@ function actionForget() {
   clearSheetId();
   clearSheetGid();
   clearEmail();
+  localStorage.removeItem(AI_CONTEXT_READY_KEY);
   accessToken = null;
   tokenExpiresAt = 0;
   // Reset synced flag so all entries re-sync on next connect
@@ -248,6 +313,8 @@ function initOnLoad() {
       .then(async () => {
         console.log('[sync] Silent re-auth ok');
         await captureEmailIfNeeded();
+        await ensureAIContextSheet();
+        await pullContextFromSheet();
         renderSyncUI();
         syncUnsyncedEntries().catch(() => {});
       })

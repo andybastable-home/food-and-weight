@@ -17,7 +17,7 @@
     <div class="brand">
       <img src="./icons/icon.svg" alt="" class="brand-mark" width="32" height="32">
       <span class="brand-name">Food &amp; Weight</span>
-      <span class="brand-version" aria-label="App version">v0.5.2</span>
+      <span class="brand-version" aria-label="App version">v0.5.3</span>
     </div>
   </header>
 
@@ -40,6 +40,7 @@
       <button class="tab" type="button" role="tab" data-tab="weight" aria-selected="false">Weight</button>
       <button class="tab" type="button" role="tab" data-tab="waist" aria-selected="false">Waist</button>
       <button class="tab" type="button" role="tab" data-tab="workout" aria-selected="false">Workout</button>
+      <button class="tab" type="button" role="tab" data-tab="ai" aria-selected="false">AI</button>
     </nav>
 
     <div id="entry-form-container"></div>
@@ -51,6 +52,18 @@
       </div>
     </section>
 
+    <div id="tab-ai" class="tab-page hidden" aria-label="AI configuration">
+      <div class="ai-config-section">
+        <label class="ai-config-label" for="cfg-ai-key">Gemini API Key</label>
+        <input type="password" id="cfg-ai-key" class="ai-config-input" placeholder="Paste your Gemini API key" autocomplete="off">
+      </div>
+      <div class="ai-config-section">
+        <label class="ai-config-label" for="cfg-ai-context">Personal Diet Profile</label>
+        <textarea id="cfg-ai-context" class="ai-config-textarea" placeholder="Describe your diet rules, typical portions, calorie estimates for your common meals&#10;&#10;e.g. * My standard lunch salad is 320 calories&#10;* Homemade white bread slice = 65g ≈ 160 kcal"></textarea>
+      </div>
+      <p class="ai-config-hint">Key and profile are saved locally. Profile syncs to your Google Sheet when connected.</p>
+    </div>
+
     <section class="sync-settings" aria-label="Sheets sync">
       <button id="sync-connect" type="button" class="btn btn-ghost">Connect Sheets</button>
       <a id="sync-sheet-link" href="#" target="_blank" rel="noopener" hidden>Open sheet</a>
@@ -59,7 +72,7 @@
   </main>
 
   <footer class="app-footer">
-    <span>v0.5.2 &middot; offline-ready</span>
+    <span>v0.5.3 &middot; offline-ready</span>
   </footer>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>

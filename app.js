@@ -294,7 +294,79 @@ function setTab(tab) {
   currentTab = tab;
   confirmingDeleteId = null;
   isFormOpen = false;
+  if (tab === 'ai') loadAITabValues();
   refreshAll();
+}
+
+// ------------------------------------------------------------------
+// AI estimation
+// ------------------------------------------------------------------
+async function requestGeminiEstimation(inputText) {
+  const apiKey = (localStorage.getItem('fw_gemini_key') || '').trim();
+  const contextText = (localStorage.getItem('fw_gemini_context') || '').trim();
+
+  if (!apiKey) throw new Error('No API key configured — set it in the AI tab.');
+
+  const prompt = `You are a personal diet assistant tracker. Estimate calories for the food item using the following context guidelines:\n\n[CONTEXT]\n${contextText}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant food emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text.slice(0, 120)}`);
+  }
+
+  const data = await res.json();
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!raw) throw new Error('Empty response from Gemini');
+  return JSON.parse(raw);
+}
+
+// ------------------------------------------------------------------
+// AI config tab
+// ------------------------------------------------------------------
+function loadAITabValues() {
+  const keyEl = document.getElementById('cfg-ai-key');
+  const ctxEl = document.getElementById('cfg-ai-context');
+  if (keyEl) keyEl.value = localStorage.getItem('fw_gemini_key') || '';
+  if (ctxEl) ctxEl.value = localStorage.getItem('fw_gemini_context') || '';
+}
+
+function initAITab() {
+  const keyEl = document.getElementById('cfg-ai-key');
+  const ctxEl = document.getElementById('cfg-ai-context');
+  if (!keyEl || !ctxEl) return;
+
+  keyEl.addEventListener('change', () => {
+    localStorage.setItem('fw_gemini_key', keyEl.value.trim());
+  });
+
+  ctxEl.addEventListener('blur', () => {
+    localStorage.setItem('fw_gemini_context', ctxEl.value);
+    if (typeof pushContextToSheet === 'function') {
+      pushContextToSheet(ctxEl.value).catch(() => {});
+    }
+  });
+}
+
+function updatePageVisibility() {
+  const onAI = currentTab === 'ai';
+  const dateNav = document.querySelector('.date-nav');
+  const aiPage = document.getElementById('tab-ai');
+  const entriesSection = document.querySelector('.entries-section');
+  const syncSettings = document.querySelector('.sync-settings');
+  if (dateNav) dateNav.hidden = onAI;
+  if (aiPage) aiPage.classList.toggle('hidden', !onAI);
+  if (entriesSection) entriesSection.hidden = onAI;
+  if (syncSettings) syncSettings.hidden = onAI;
 }
 
 // ------------------------------------------------------------------
@@ -386,6 +458,11 @@ function buildCategoryPills(selectedCategory) {
 }
 
 function renderEntryForm() {
+  if (currentTab === 'ai') {
+    els.formContainer.replaceChildren();
+    return;
+  }
+
   const config = TYPES[currentTab];
 
   if (config.isCollapsible && !isFormOpen) {
@@ -411,6 +488,9 @@ function renderEntryForm() {
 
   let caloriesInput;
   if (currentTab === 'food') {
+    const aiStatusLog = document.createElement('div');
+    aiStatusLog.className = 'ai-status-log hidden';
+
     const caloriesWrap = document.createElement('div');
     caloriesWrap.className = 'entry-input-wrap';
 
@@ -426,9 +506,35 @@ function renderEntryForm() {
     aiBtn.type = 'button';
     aiBtn.className = 'ai-button';
     aiBtn.textContent = '✨';
-    aiBtn.setAttribute('aria-label', 'AI estimation coming soon');
-    aiBtn.addEventListener('click', () => {
-      console.log('AI estimation coming soon');
+    aiBtn.setAttribute('aria-label', 'Estimate calories with AI');
+    aiBtn.addEventListener('click', async () => {
+      const text = input.value.trim();
+      if (!text) {
+        aiStatusLog.className = 'ai-status-log confidence-error';
+        aiStatusLog.textContent = 'Enter a food description first.';
+        return;
+      }
+      aiBtn.disabled = true;
+      aiBtn.textContent = '⏳';
+      aiStatusLog.className = 'ai-status-log';
+      aiStatusLog.textContent = 'Estimating…';
+      try {
+        const result = await requestGeminiEstimation(text);
+        if (result.title) input.value = result.title;
+        if (result.calories) caloriesInput.value = result.calories;
+        const conf = result.confidence || 'Low';
+        const cls = conf === 'Excellent' ? 'confidence-excellent'
+          : conf === 'Moderate' ? 'confidence-moderate' : 'confidence-low';
+        aiStatusLog.className = `ai-status-log ${cls}`;
+        aiStatusLog.textContent = `✨ Confidence: ${conf} — ${result.reasoning || ''}`;
+      } catch (err) {
+        aiStatusLog.className = 'ai-status-log confidence-error';
+        const msg = err.message.includes('No API key') ? 'Set your Gemini key in the AI tab first.' : 'Request failed — check your API key or connection.';
+        aiStatusLog.textContent = msg;
+      } finally {
+        aiBtn.disabled = false;
+        aiBtn.textContent = '✨';
+      }
     });
     caloriesWrap.appendChild(aiBtn);
 
@@ -455,6 +561,7 @@ function renderEntryForm() {
     caloriesWrap.appendChild(hiddenFileInput);
 
     form.appendChild(wrap);
+    form.appendChild(aiStatusLog);
     form.appendChild(caloriesWrap);
   } else {
     form.appendChild(wrap);
@@ -592,11 +699,17 @@ function renderEntries(entries) {
 }
 
 async function refreshList() {
+  if (currentTab === 'ai') {
+    els.list.replaceChildren();
+    els.empty.hidden = true;
+    return;
+  }
   const entries = await loadEntries(currentDate, currentTab);
   renderEntries(entries);
 }
 
 async function refreshAll() {
+  updatePageVisibility();
   renderTabs();
   renderDateNav();
   renderEntryForm();
@@ -615,6 +728,7 @@ function init() {
     if (isSameDay(currentDate, new Date())) return;
     setDate(addDays(currentDate, 1));
   });
+  initAITab();
   refreshAll();
 }
 
