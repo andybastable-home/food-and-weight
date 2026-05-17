@@ -208,6 +208,45 @@ async function pullContextFromSheet() {
   }
 }
 
+async function pullEntriesFromSheet() {
+  if (!getSheetId()) return;
+  try {
+    const sheetId = getSheetId();
+    const data = await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Entries!A:I`
+    );
+    const rows = data.values || [];
+    if (rows.length <= 1) return; // header only
+    let upserted = 0;
+    for (const row of rows.slice(1)) {
+      const id = Number(row[0]);
+      if (!id) continue;
+      const type = row[3] || 'food';
+      const rawValue = row[4] || '';
+      const entry = {
+        id,
+        timestamp: Number(row[1]) || Date.parse(row[2]) || Date.now(),
+        type,
+        notes: row[5] || '',
+        timeCategory: row[6] || '',
+        calories: row[7] ? Number(row[7]) : undefined,
+        synced: true,
+      };
+      if (type === 'food') {
+        entry.text = rawValue;
+      } else {
+        entry.value = rawValue !== '' ? Number(rawValue) : undefined;
+      }
+      await db.entries.put(entry);
+      upserted++;
+    }
+    console.log('[sync] Pulled', upserted, 'entries from sheet');
+    if (typeof refreshList === 'function') refreshList();
+  } catch (err) {
+    console.warn('[sync] pullEntriesFromSheet failed:', err.message);
+  }
+}
+
 // Writes entries to the sheet. Throws on failure so callers can decide whether to mark synced.
 async function syncEntriesToSheet(entriesArray) {
   if (!entriesArray.length) return;
@@ -312,6 +351,7 @@ async function actionConnect() {
     await ensureSheet();
     await ensureAIContextSheet();
     await pullContextFromSheet();
+    await pullEntriesFromSheet();
     renderSyncUI();
     syncUnsyncedEntries().catch(() => {});
   } catch (err) {
@@ -348,6 +388,7 @@ function initOnLoad() {
         await captureEmailIfNeeded();
         await ensureAIContextSheet();
         await pullContextFromSheet();
+        await pullEntriesFromSheet();
         renderSyncUI();
         syncUnsyncedEntries().catch(() => {});
       })
