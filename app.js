@@ -730,8 +730,15 @@ function buildRetroConfirmRow(entry, aiResult) {
     saveEntryUpdate(entry, titleInput.value.trim(), calInput.value)
   );
 
+  const conf = aiResult.confidence || 'Low';
+  const confCls = conf === 'Excellent' ? 'confidence-excellent'
+    : conf === 'Moderate' ? 'confidence-moderate' : 'confidence-low';
+  const statusLog = document.createElement('div');
+  statusLog.className = `ai-status-log ${confCls}`;
+  statusLog.textContent = `✨ Confidence: ${conf} — ${aiResult.reasoning || ''}`;
+
   actions.append(cancelBtn, saveBtn);
-  li.append(titleInput, calInput, actions);
+  li.append(titleInput, calInput, statusLog, actions);
   return li;
 }
 
