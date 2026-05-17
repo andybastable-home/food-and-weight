@@ -2,6 +2,7 @@
 const CLIENT_ID = '58841586776-lbkpi48lsk19rb3e2d8icfcvammotacs.apps.googleusercontent.com';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file openid email';
 const SHEET_ID_KEY = 'fw.spike.sheetId';
+const SHEET_GID_KEY = 'fw.spike.sheetGid';
 const EMAIL_KEY = 'fw.spike.email';
 
 let tokenClient = null;
@@ -17,6 +18,10 @@ const syncUI = {
 function getSheetId() { return localStorage.getItem(SHEET_ID_KEY); }
 function setSheetId(id) { localStorage.setItem(SHEET_ID_KEY, id); }
 function clearSheetId() { localStorage.removeItem(SHEET_ID_KEY); }
+
+function getSheetGid() { const v = localStorage.getItem(SHEET_GID_KEY); return v !== null ? Number(v) : 0; }
+function setSheetGid(gid) { localStorage.setItem(SHEET_GID_KEY, String(gid)); }
+function clearSheetGid() { localStorage.removeItem(SHEET_GID_KEY); }
 
 function getEmail() { return localStorage.getItem(EMAIL_KEY); }
 function setEmail(e) { localStorage.setItem(EMAIL_KEY, e); }
@@ -128,6 +133,7 @@ async function ensureSheet() {
     }),
   });
   setSheetId(data.spreadsheetId);
+  setSheetGid(data.sheets[0].properties.sheetId);
   console.log('[sync] Sheet created:', data.spreadsheetId);
   await apiCall(
     `https://sheets.googleapis.com/v4/spreadsheets/${data.spreadsheetId}/values/Entries!A1:append?valueInputOption=RAW`,
@@ -166,6 +172,42 @@ async function syncEntriesToSheet(entriesArray) {
   console.log('[sync] Synced', rows.length, 'entries');
 }
 
+async function deleteEntryFromSheet(entryId) {
+  if (!getSheetId()) return;
+  try {
+    await ensureFreshToken();
+    const sheetId = getSheetId();
+    // Find the row in column A that matches this entry's id
+    const colA = await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Entries!A:A`
+    );
+    const rows = colA.values || [];
+    const rowIndex = rows.findIndex((r, i) => i > 0 && String(r[0]) === String(entryId));
+    if (rowIndex === -1) {
+      console.log('[sync] Entry not found in sheet, skipping row delete');
+      return;
+    }
+    await apiCall(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: getSheetGid(),
+              dimension: 'ROWS',
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1,
+            },
+          },
+        }],
+      }),
+    });
+    console.log('[sync] Row deleted from sheet');
+  } catch (err) {
+    console.warn('[sync] deleteEntryFromSheet failed:', err.message);
+  }
+}
+
 async function actionConnect() {
   try {
     console.log('[sync] Requesting token…');
@@ -182,6 +224,7 @@ async function actionConnect() {
 
 function actionForget() {
   clearSheetId();
+  clearSheetGid();
   clearEmail();
   accessToken = null;
   tokenExpiresAt = 0;

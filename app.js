@@ -177,7 +177,7 @@ function getTimeCategory(date) {
 // ------------------------------------------------------------------
 let currentDate = startOfDay(new Date());
 let currentTab = 'food';
-let editingId = null;
+let confirmingDeleteId = null;
 let isFormOpen = false;
 
 const els = {
@@ -263,56 +263,28 @@ async function handleAdd(type, formData) {
   return true;
 }
 
-async function handleEditSave(originalEntry, formData) {
-  const config = TYPES[originalEntry.type];
-  const fields = {};
-
-  if (config.inputKind === 'text') {
-    const text = (formData.text || '').trim();
-    if (!text) return;
-    fields.text = text;
-  } else {
-    const value = parseFloat(formData.value);
-    if (Number.isNaN(value) || value <= 0) return;
-    fields.value = value;
-  }
-
-  if (config.hasTimeCategory && formData.timeCategory) {
-    fields.timeCategory = formData.timeCategory;
-  }
-
-  if (originalEntry.type === 'food' && formData.calories) {
-    const calories = parseFloat(formData.calories);
-    if (!Number.isNaN(calories) && calories > 0) {
-      fields.calories = calories;
-    }
-  }
-
-  await db.entries.update(originalEntry.id, fields);
-  editingId = null;
-  await refreshList();
-}
-
 async function confirmAndDelete(id) {
-  if (!confirm('Delete this entry?')) return;
   await db.entries.delete(id);
-  editingId = null;
+  confirmingDeleteId = null;
+  if (typeof deleteEntryFromSheet === 'function') {
+    deleteEntryFromSheet(id).catch(() => {});
+  }
   await refreshList();
 }
 
-function startEdit(id) {
-  editingId = id;
+function startDeleteConfirm(id) {
+  confirmingDeleteId = id;
   refreshList();
 }
 
-function cancelEdit() {
-  editingId = null;
+function cancelDeleteConfirm() {
+  confirmingDeleteId = null;
   refreshList();
 }
 
 function setDate(date) {
   currentDate = startOfDay(date);
-  editingId = null;
+  confirmingDeleteId = null;
   isFormOpen = false;
   refreshAll();
 }
@@ -320,7 +292,7 @@ function setDate(date) {
 function setTab(tab) {
   if (currentTab === tab) return;
   currentTab = tab;
-  editingId = null;
+  confirmingDeleteId = null;
   isFormOpen = false;
   refreshAll();
 }
@@ -531,8 +503,8 @@ function buildEntryRow(entry) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'entry-row';
-  btn.setAttribute('aria-label', `Edit entry: ${config.formatDisplay(entry)}`);
-  btn.addEventListener('click', () => startEdit(entry.id));
+  btn.setAttribute('aria-label', `Delete entry: ${config.formatDisplay(entry)}`);
+  btn.addEventListener('click', () => startDeleteConfirm(entry.id));
 
   const display = document.createElement('span');
   display.className = config.inputKind === 'number' ? 'entry-value' : 'entry-text';
@@ -543,76 +515,15 @@ function buildEntryRow(entry) {
   return li;
 }
 
-function buildEditingRow(entry) {
+function buildDeleteConfirmRow(entry) {
   const config = TYPES[entry.type];
   const li = document.createElement('li');
-  li.className = 'entry entry-editing';
+  li.className = 'entry entry-deleting';
   li.dataset.id = String(entry.id);
 
-  const form = document.createElement('form');
-  form.className = 'edit-form';
-
-  const initialValue = config.inputKind === 'text' ? entry.text : String(entry.value);
-  const input = buildPrimaryInput(config, initialValue);
-  input.classList.add('edit-input');
-  input.enterKeyHint = 'done';
-  const wrap = buildInputWrap(config, input);
-  form.appendChild(wrap);
-
-  let caloriesInput;
-  if (entry.type === 'food') {
-    const caloriesWrap = document.createElement('div');
-    caloriesWrap.className = 'entry-input-wrap';
-
-    caloriesInput = document.createElement('input');
-    caloriesInput.type = 'number';
-    caloriesInput.name = 'calories';
-    caloriesInput.placeholder = 'Calories (optional)';
-    caloriesInput.min = '0';
-    caloriesInput.className = 'entry-input';
-    caloriesInput.value = entry.calories ? String(entry.calories) : '';
-    caloriesWrap.appendChild(caloriesInput);
-
-    const aiBtn = document.createElement('button');
-    aiBtn.type = 'button';
-    aiBtn.className = 'ai-button';
-    aiBtn.textContent = '✨';
-    aiBtn.setAttribute('aria-label', 'AI estimation coming soon');
-    aiBtn.addEventListener('click', () => {
-      console.log('AI estimation coming soon');
-    });
-    caloriesWrap.appendChild(aiBtn);
-
-    const cameraBtn = document.createElement('button');
-    cameraBtn.type = 'button';
-    cameraBtn.className = 'camera-button';
-    cameraBtn.textContent = '📷';
-    cameraBtn.setAttribute('aria-label', 'Take a photo');
-
-    const hiddenFileInput = document.createElement('input');
-    hiddenFileInput.type = 'file';
-    hiddenFileInput.accept = 'image/*';
-    hiddenFileInput.capture = 'environment';
-    hiddenFileInput.hidden = true;
-    hiddenFileInput.addEventListener('change', () => {
-      console.log('Photo captured but not yet processed');
-    });
-
-    cameraBtn.addEventListener('click', () => {
-      hiddenFileInput.click();
-    });
-
-    caloriesWrap.appendChild(cameraBtn);
-    caloriesWrap.appendChild(hiddenFileInput);
-
-    form.appendChild(caloriesWrap);
-  }
-
-  if (config.hasTimeCategory) {
-    const currentCategory = entry.timeCategory || getTimeCategory(entry.timestamp);
-    const pills = buildCategoryPills(currentCategory);
-    form.appendChild(pills);
-  }
+  const label = document.createElement('span');
+  label.className = config.inputKind === 'number' ? 'entry-value' : 'entry-text';
+  label.textContent = config.formatDisplay(entry);
 
   const actions = document.createElement('div');
   actions.className = 'edit-actions';
@@ -621,7 +532,7 @@ function buildEditingRow(entry) {
   cancelBtn.type = 'button';
   cancelBtn.className = 'btn btn-ghost';
   cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', cancelEdit);
+  cancelBtn.addEventListener('click', cancelDeleteConfirm);
 
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button';
@@ -629,42 +540,8 @@ function buildEditingRow(entry) {
   deleteBtn.textContent = 'Delete';
   deleteBtn.addEventListener('click', () => confirmAndDelete(entry.id));
 
-  const saveBtn = document.createElement('button');
-  saveBtn.type = 'submit';
-  saveBtn.className = 'btn btn-primary';
-  saveBtn.textContent = 'Save';
-
-  actions.append(cancelBtn, deleteBtn, saveBtn);
-  form.appendChild(actions);
-
-  form.addEventListener('submit', (ev) => {
-    ev.preventDefault();
-    const formData = {
-      text: input.name === 'text' ? input.value : undefined,
-      value: input.name === 'value' ? input.value : undefined,
-    };
-    if (config.hasTimeCategory) {
-      const selected = form.querySelector('input[name="timeCategory"]:checked');
-      formData.timeCategory = selected ? selected.value : undefined;
-    }
-    if (entry.type === 'food' && caloriesInput) {
-      formData.calories = caloriesInput.value;
-    }
-    handleEditSave(entry, formData);
-  });
-
-  li.appendChild(form);
-
-  queueMicrotask(() => {
-    input.focus();
-    if (config.inputKind === 'text') {
-      const len = input.value.length;
-      input.setSelectionRange(len, len);
-    } else {
-      input.select();
-    }
-  });
-
+  actions.append(cancelBtn, deleteBtn);
+  li.append(label, actions);
   return li;
 }
 
@@ -700,7 +577,7 @@ function renderEntries(entries) {
       els.list.appendChild(header);
 
       for (const entry of categoryEntries) {
-        const li = entry.id === editingId ? buildEditingRow(entry) : buildEntryRow(entry);
+        const li = entry.id === confirmingDeleteId ? buildDeleteConfirmRow(entry) : buildEntryRow(entry);
         li.classList.add(`category-${category.toLowerCase()}`);
         els.list.appendChild(li);
       }
@@ -708,7 +585,7 @@ function renderEntries(entries) {
   } else {
     for (const entry of entries) {
       els.list.appendChild(
-        entry.id === editingId ? buildEditingRow(entry) : buildEntryRow(entry)
+        entry.id === confirmingDeleteId ? buildDeleteConfirmRow(entry) : buildEntryRow(entry)
       );
     }
   }

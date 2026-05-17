@@ -46,6 +46,13 @@ This project runs on Claude Pro with hard usage limits. Be deliberate about cont
 - Current phase block + next 2–3 steps + open questions only.
 - When a phase closes, archive the detail to a phase-specific note or just delete it — don't accrete.
 
+## Versioning
+
+**Bump the version with every commit.** This app is deployed as a PWA and version numbers are the primary way Andy confirms the correct build loaded on his phone during testing.
+
+- Version lives in three places — keep them in sync: `index.html` (brand-version span + footer span) and `service-worker.js` (`CACHE_VERSION`).
+- Use semver patch bumps (v0.5.1 → v0.5.2) for most changes; minor bumps (v0.5.x → v0.6.0) for significant feature milestones.
+
 ## Constraints
 
 - **No paid subscriptions, ever.** This is a personal hobby project. Any solution that requires a paid plan (GitHub Pro, hosting tiers, paid APIs beyond free quotas, etc.) is off the table — find a free alternative or flag the constraint and ask. Free tiers of services (Gemini, Apps Script, GitHub Pages on public repos, Cloudflare/Netlify free) are fine.
