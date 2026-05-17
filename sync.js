@@ -185,6 +185,8 @@ function actionForget() {
   clearEmail();
   accessToken = null;
   tokenExpiresAt = 0;
+  // Reset synced flag so all entries re-sync on next connect
+  db.entries.toCollection().modify({ synced: false }).catch(() => {});
   console.log('[sync] Local state cleared');
   renderSyncUI();
 }
