@@ -194,6 +194,19 @@ const els = {
 // ------------------------------------------------------------------
 // Data access
 // ------------------------------------------------------------------
+async function syncUnsyncedEntries() {
+  if (!getSheetId()) return;
+  try {
+    const pending = await db.entries.filter(e => !e.synced).toArray();
+    if (!pending.length) return;
+    await syncEntriesToSheet(pending);
+    await Promise.all(pending.map(e => db.entries.update(e.id, { synced: true })));
+    console.log('[app] Historical sync complete');
+  } catch (err) {
+    console.warn('[app] syncUnsyncedEntries failed:', err.message);
+  }
+}
+
 async function loadEntries(date, type) {
   const start = startOfDay(date).getTime();
   const end = endOfDay(date).getTime();
@@ -238,7 +251,13 @@ async function handleAdd(type, formData) {
     }
   }
 
-  await db.entries.add(entry);
+  const id = await db.entries.add(entry);
+  const savedEntry = { ...entry, id };
+  if (typeof syncEntriesToSheet === 'function') {
+    syncEntriesToSheet([savedEntry])
+      .then(() => db.entries.update(id, { synced: true }))
+      .catch(() => {});
+  }
   isFormOpen = false;
   await refreshList();
   return true;

@@ -17,7 +17,7 @@
     <div class="brand">
       <img src="./icons/icon.svg" alt="" class="brand-mark" width="32" height="32">
       <span class="brand-name">Food &amp; Weight</span>
-      <span class="brand-version" aria-label="App version">v0.5.0</span>
+      <span class="brand-version" aria-label="App version">v0.5.1</span>
     </div>
   </header>
 
@@ -51,24 +51,15 @@
       </div>
     </section>
 
-    <details id="spike-panel" class="spike-panel">
-      <summary>Sheets sync (spike)</summary>
-      <div class="spike-body">
-        <p id="spike-status" class="spike-status">Token: —   ·   Sheet: —</p>
-        <div class="spike-actions">
-          <button id="spike-connect" type="button" class="btn btn-primary">Connect Google</button>
-          <button id="spike-create-sheet" type="button" class="btn" disabled>Create sheet</button>
-          <button id="spike-write-row" type="button" class="btn" disabled>Append test row</button>
-          <button id="spike-forget" type="button" class="btn btn-ghost">Forget</button>
-        </div>
-        <p><a id="spike-sheet-link" href="#" target="_blank" rel="noopener" hidden>Open sheet</a></p>
-        <pre id="spike-log" class="spike-log" aria-live="polite"></pre>
-      </div>
-    </details>
+    <section class="sync-settings" aria-label="Sheets sync">
+      <button id="sync-connect" type="button" class="btn btn-ghost">Connect Sheets</button>
+      <a id="sync-sheet-link" href="#" target="_blank" rel="noopener" hidden>Open sheet</a>
+      <button id="sync-forget" type="button" class="btn btn-ghost" hidden>Disconnect</button>
+    </section>
   </main>
 
   <footer class="app-footer">
-    <span>v0.5.0 &middot; offline-ready</span>
+    <span>v0.5.1 &middot; offline-ready</span>
   </footer>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
