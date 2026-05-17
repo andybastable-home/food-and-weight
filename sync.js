@@ -134,7 +134,7 @@ async function ensureSheet() {
     {
       method: 'POST',
       body: JSON.stringify({
-        values: [['id', 'epoch', 'iso_date', 'type', 'value', 'notes', 'synced_at']],
+        values: [['id', 'epoch', 'iso_date', 'type', 'value', 'notes', 'time_category', 'calories', 'synced_at']],
       }),
     }
   );
@@ -154,6 +154,8 @@ async function syncEntriesToSheet(entriesArray) {
     e.type,
     e.value != null ? e.value : (e.text || ''),
     e.notes || '',
+    e.timeCategory || '',
+    e.calories || '',
     now,
   ]);
   await apiCall(
