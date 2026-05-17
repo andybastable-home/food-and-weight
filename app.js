@@ -294,7 +294,6 @@ function setTab(tab) {
   currentTab = tab;
   confirmingDeleteId = null;
   isFormOpen = false;
-  if (tab === 'ai') loadAITabValues();
   refreshAll();
 }
 
@@ -331,19 +330,35 @@ async function requestGeminiEstimation(inputText) {
 }
 
 // ------------------------------------------------------------------
-// AI config tab
+// Settings panel
 // ------------------------------------------------------------------
-function loadAITabValues() {
+function loadSettingsValues() {
   const keyEl = document.getElementById('cfg-ai-key');
   const ctxEl = document.getElementById('cfg-ai-context');
   if (keyEl) keyEl.value = localStorage.getItem('fw_gemini_key') || '';
   if (ctxEl) ctxEl.value = localStorage.getItem('fw_gemini_context') || '';
 }
 
-function initAITab() {
+function initSettingsPanel() {
+  const btn = document.getElementById('settings-btn');
+  const overlay = document.getElementById('settings-overlay');
+  const closeBtn = document.getElementById('settings-close');
   const keyEl = document.getElementById('cfg-ai-key');
   const ctxEl = document.getElementById('cfg-ai-context');
-  if (!keyEl || !ctxEl) return;
+
+  if (!btn || !overlay) return;
+
+  btn.addEventListener('click', () => {
+    loadSettingsValues();
+    overlay.classList.remove('hidden');
+  });
+
+  function closePanel() {
+    overlay.classList.add('hidden');
+  }
+
+  closeBtn.addEventListener('click', closePanel);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
 
   keyEl.addEventListener('change', () => {
     localStorage.setItem('fw_gemini_key', keyEl.value.trim());
@@ -355,18 +370,6 @@ function initAITab() {
       pushContextToSheet(ctxEl.value).catch(() => {});
     }
   });
-}
-
-function updatePageVisibility() {
-  const onAI = currentTab === 'ai';
-  const dateNav = document.querySelector('.date-nav');
-  const aiPage = document.getElementById('tab-ai');
-  const entriesSection = document.querySelector('.entries-section');
-  const syncSettings = document.querySelector('.sync-settings');
-  if (dateNav) dateNav.hidden = onAI;
-  if (aiPage) aiPage.classList.toggle('hidden', !onAI);
-  if (entriesSection) entriesSection.hidden = onAI;
-  if (syncSettings) syncSettings.hidden = onAI;
 }
 
 // ------------------------------------------------------------------
@@ -458,11 +461,6 @@ function buildCategoryPills(selectedCategory) {
 }
 
 function renderEntryForm() {
-  if (currentTab === 'ai') {
-    els.formContainer.replaceChildren();
-    return;
-  }
-
   const config = TYPES[currentTab];
 
   if (config.isCollapsible && !isFormOpen) {
@@ -618,6 +616,14 @@ function buildEntryRow(entry) {
   display.textContent = config.formatDisplay(entry);
 
   btn.append(display);
+
+  if (entry.type === 'food' && entry.calories) {
+    const cal = document.createElement('span');
+    cal.className = 'entry-calories';
+    cal.textContent = `${Math.round(entry.calories)} kcal`;
+    btn.append(cal);
+  }
+
   li.append(btn);
   return li;
 }
@@ -631,6 +637,13 @@ function buildDeleteConfirmRow(entry) {
   const label = document.createElement('span');
   label.className = config.inputKind === 'number' ? 'entry-value' : 'entry-text';
   label.textContent = config.formatDisplay(entry);
+
+  if (entry.type === 'food' && entry.calories) {
+    const cal = document.createElement('span');
+    cal.className = 'entry-calories';
+    cal.textContent = `${Math.round(entry.calories)} kcal`;
+    label.insertAdjacentElement('afterend', cal);
+  }
 
   const actions = document.createElement('div');
   actions.className = 'edit-actions';
@@ -699,17 +712,11 @@ function renderEntries(entries) {
 }
 
 async function refreshList() {
-  if (currentTab === 'ai') {
-    els.list.replaceChildren();
-    els.empty.hidden = true;
-    return;
-  }
   const entries = await loadEntries(currentDate, currentTab);
   renderEntries(entries);
 }
 
 async function refreshAll() {
-  updatePageVisibility();
   renderTabs();
   renderDateNav();
   renderEntryForm();
@@ -728,7 +735,7 @@ function init() {
     if (isSameDay(currentDate, new Date())) return;
     setDate(addDays(currentDate, 1));
   });
-  initAITab();
+  initSettingsPanel();
   refreshAll();
 }
 

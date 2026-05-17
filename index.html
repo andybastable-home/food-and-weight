@@ -17,9 +17,52 @@
     <div class="brand">
       <img src="./icons/icon.svg" alt="" class="brand-mark" width="32" height="32">
       <span class="brand-name">Food &amp; Weight</span>
-      <span class="brand-version" aria-label="App version">v0.5.3</span>
+      <span class="brand-version" aria-label="App version">v0.5.4</span>
     </div>
+    <button id="settings-btn" class="settings-btn" type="button" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
   </header>
+
+  <!-- Settings overlay -->
+  <div id="settings-overlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="settings-panel">
+      <div class="settings-header">
+        <span class="settings-title">Settings</span>
+        <button id="settings-close" class="settings-close" type="button" aria-label="Close settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="settings-body">
+        <h2 class="settings-section-title">AI Estimation</h2>
+        <div class="ai-config-section">
+          <label class="ai-config-label" for="cfg-ai-key">Gemini API Key</label>
+          <input type="password" id="cfg-ai-key" class="ai-config-input" placeholder="Paste your Gemini API key" autocomplete="off">
+        </div>
+        <div class="ai-config-section">
+          <label class="ai-config-label" for="cfg-ai-context">Personal Diet Profile</label>
+          <textarea id="cfg-ai-context" class="ai-config-textarea" placeholder="Describe your diet rules, typical portions, calorie estimates for your common meals
+
+e.g. * My standard lunch salad is 320 calories
+* Homemade white bread slice = 65g ≈ 160 kcal
+* Coffee = 200ml oat milk, no sugar ≈ 50 kcal"></textarea>
+        </div>
+        <p class="ai-config-hint">Key and profile are saved locally. Profile syncs to your Google Sheet when connected.</p>
+
+        <h2 class="settings-section-title">Sheets Sync</h2>
+        <div class="settings-sync">
+          <button id="sync-connect" type="button" class="btn btn-ghost">Connect Sheets</button>
+          <a id="sync-sheet-link" href="#" target="_blank" rel="noopener" hidden>Open sheet</a>
+          <button id="sync-forget" type="button" class="btn btn-ghost" hidden>Disconnect</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <main class="container">
     <section class="date-nav" aria-label="Date navigation">
@@ -40,7 +83,6 @@
       <button class="tab" type="button" role="tab" data-tab="weight" aria-selected="false">Weight</button>
       <button class="tab" type="button" role="tab" data-tab="waist" aria-selected="false">Waist</button>
       <button class="tab" type="button" role="tab" data-tab="workout" aria-selected="false">Workout</button>
-      <button class="tab" type="button" role="tab" data-tab="ai" aria-selected="false">AI</button>
     </nav>
 
     <div id="entry-form-container"></div>
@@ -51,28 +93,10 @@
         <p>Nothing logged yet for this day.</p>
       </div>
     </section>
-
-    <div id="tab-ai" class="tab-page hidden" aria-label="AI configuration">
-      <div class="ai-config-section">
-        <label class="ai-config-label" for="cfg-ai-key">Gemini API Key</label>
-        <input type="password" id="cfg-ai-key" class="ai-config-input" placeholder="Paste your Gemini API key" autocomplete="off">
-      </div>
-      <div class="ai-config-section">
-        <label class="ai-config-label" for="cfg-ai-context">Personal Diet Profile</label>
-        <textarea id="cfg-ai-context" class="ai-config-textarea" placeholder="Describe your diet rules, typical portions, calorie estimates for your common meals&#10;&#10;e.g. * My standard lunch salad is 320 calories&#10;* Homemade white bread slice = 65g ≈ 160 kcal"></textarea>
-      </div>
-      <p class="ai-config-hint">Key and profile are saved locally. Profile syncs to your Google Sheet when connected.</p>
-    </div>
-
-    <section class="sync-settings" aria-label="Sheets sync">
-      <button id="sync-connect" type="button" class="btn btn-ghost">Connect Sheets</button>
-      <a id="sync-sheet-link" href="#" target="_blank" rel="noopener" hidden>Open sheet</a>
-      <button id="sync-forget" type="button" class="btn btn-ghost" hidden>Disconnect</button>
-    </section>
   </main>
 
   <footer class="app-footer">
-    <span>v0.5.3 &middot; offline-ready</span>
+    <span>v0.5.4 &middot; offline-ready</span>
   </footer>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
