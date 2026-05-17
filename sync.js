@@ -172,6 +172,7 @@ async function actionConnect() {
     await requestToken({ silent: false });
     console.log('[sync] Token granted');
     await captureEmailIfNeeded();
+    await ensureSheet();
     renderSyncUI();
     syncUnsyncedEntries().catch(() => {});
   } catch (err) {
