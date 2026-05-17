@@ -313,16 +313,22 @@ async function requestGeminiEstimation(inputText) {
 
   const prompt = `You are a personal diet assistant tracker. Estimate calories for the food item using the following context guidelines:\n\n[CONTEXT]\n${contextText}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant food emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
+  const base = 'https://generativelanguage.googleapis.com/v1beta/models';
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json' },
+  });
+  const fetchModel = (model) => fetch(`${base}/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
-    }),
+    body,
   });
 
+  let res = await fetchModel('gemini-2.5-flash');
+  if (res.status === 429) {
+    console.warn('[ai] gemini-2.5-flash quota hit, falling back to gemini-2.0-flash');
+    res = await fetchModel('gemini-2.0-flash');
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text.slice(0, 120)}`);
