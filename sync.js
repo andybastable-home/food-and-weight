@@ -270,6 +270,39 @@ async function deleteEntryFromSheet(entryId) {
   }
 }
 
+async function updateEntryInSheet(entry) {
+  if (!getSheetId()) return;
+  await ensureFreshToken();
+  const sheetId = getSheetId();
+  const colA = await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Entries!A:A`
+  );
+  const rows = colA.values || [];
+  const rowIndex = rows.findIndex((r, i) => i > 0 && String(r[0]) === String(entry.id));
+  if (rowIndex === -1) {
+    console.log('[sync] updateEntryInSheet: entry not found in sheet');
+    return;
+  }
+  const range = `Entries!A${rowIndex + 1}:I${rowIndex + 1}`;
+  const now = new Date().toISOString();
+  const row = [
+    entry.id,
+    entry.timestamp,
+    new Date(entry.timestamp).toISOString(),
+    entry.type,
+    entry.value != null ? entry.value : (entry.text || ''),
+    entry.notes || '',
+    entry.timeCategory || '',
+    entry.calories || '',
+    now,
+  ];
+  await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?valueInputOption=RAW`,
+    { method: 'PUT', body: JSON.stringify({ values: [row] }) }
+  );
+  console.log('[sync] Row updated in sheet:', entry.id);
+}
+
 async function actionConnect() {
   try {
     console.log('[sync] Requesting token…');

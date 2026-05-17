@@ -611,6 +611,36 @@ body {
   min-height: 40px;
 }
 
+.edit-input {
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  font-size: 14px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.edit-input-cal {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.retro-ai-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  padding: var(--space-2);
+  margin-left: auto;
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 80ms ease;
+  line-height: 1;
+}
+
+.retro-ai-btn:active { transform: scale(0.95); }
+.retro-ai-btn:disabled { opacity: 0.5; cursor: default; }
+
 /* ------------------------------------------------------------------
    Empty state
 ------------------------------------------------------------------ */
@@ -623,6 +653,16 @@ body {
 .empty-state p {
   margin: 0;
   font-size: 15px;
+}
+
+.calories-total {
+  text-align: right;
+  padding: var(--space-3) var(--space-4);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-2);
 }
 
 /* ------------------------------------------------------------------
@@ -761,9 +801,8 @@ body {
   outline: none;
   min-height: 260px;
   resize: vertical;
-  white-space: pre;
-  overflow-wrap: normal;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
   tab-size: 2;
 }
 

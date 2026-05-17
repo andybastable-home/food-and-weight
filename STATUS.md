@@ -1,9 +1,15 @@
 # Status
 
 ## Current phase
-**Phase 4 — AI calorie estimation** (shipped in v0.5.3; needs phone verification)
+**Phase 4 — Retro calorie estimation** (v0.5.5; needs phone verification)
 
 ## Last completed
+- **Retro calorie estimation via ✨ button (v0.5.5)**:
+  - Food entries without calories now show a ✨ button on the right.
+  - Tapping ✨ fires Gemini, then expands the row into an inline review form (title + calorie inputs).
+  - Save writes updated text, calories, and backfilled timeCategory to Dexie and the Google Sheet (in-place row update via PUT, no duplicate).
+  - Row container changed from `<button>` to `<div role="button">` to allow nested buttons.
+  - `updateEntryInSheet()` added to sync.js.
 - **AI calorie estimation (v0.5.3)**:
   - New "AI" tab in the nav — shows API key field + monospace diet-profile textarea.
   - ✨ sparkle button in the food form fires a Gemini 2.5 Flash request with the food description + profile context.
@@ -21,17 +27,15 @@
 - **Cloud Console origins**: only `https://andybastable-home.github.io` and `http://localhost:8000` are authorised.
 
 ## Next steps (phone verification)
-1. Load PWA — confirm "AI" tab appears in the nav.
-2. Go to AI tab → paste Gemini API key → type some diet context notes.
-3. Return to Food tab → type a scrappy food description → tap ✨.
-4. Verify: title updates with emoji, calories fill in, confidence log appears.
-5. Tap Save — confirm entry logs normally.
-6. Connect Sheets → check Drive: `AI_Context` worksheet exists, cell A2 has your context.
-7. Wipe localStorage → reload → reconnect → confirm context is pulled back from the sheet.
+1. Create a food entry without calories — confirm ✨ appears on its row.
+2. Tap ✨ — it should turn ⏳, then expand into an inline form with pre-filled title + calories.
+3. Edit the calories slightly, tap Save.
+4. Check IndexedDB: entry has `calories` and `timeCategory`.
+5. Check Google Sheets: row updated in place (no duplicate), new text/calories/timeCategory visible.
 
 ## Known follow-ups
 - Edits/deletes don't sync yet — append-only log.
 - No "last synced" indicator.
 - Camera button (📷) in food form is wired to a file picker but does nothing yet — Phase 5 candidate.
 - `AI_Context` pull only fires if local is blank; no explicit "pull latest from sheet" button yet.
-- Service worker cache: `fw-shell-v0.5.3`.
+- Service worker cache: `fw-shell-v0.5.5`.

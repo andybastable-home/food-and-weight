@@ -178,6 +178,7 @@ function getTimeCategory(date) {
 let currentDate = startOfDay(new Date());
 let currentTab = 'food';
 let confirmingDeleteId = null;
+let retroConfirmState = null; // { id, aiResult } when retro-estimate review is open
 let isFormOpen = false;
 
 const els = {
@@ -189,6 +190,7 @@ const els = {
   formContainer: document.getElementById('entry-form-container'),
   list: document.getElementById('entries-list'),
   empty: document.getElementById('empty-state'),
+  calTotal: document.getElementById('calories-total'),
 };
 
 // ------------------------------------------------------------------
@@ -274,6 +276,7 @@ async function confirmAndDelete(id) {
 
 function startDeleteConfirm(id) {
   confirmingDeleteId = id;
+  retroConfirmState = null;
   refreshList();
 }
 
@@ -285,6 +288,7 @@ function cancelDeleteConfirm() {
 function setDate(date) {
   currentDate = startOfDay(date);
   confirmingDeleteId = null;
+  retroConfirmState = null;
   isFormOpen = false;
   refreshAll();
 }
@@ -293,6 +297,7 @@ function setTab(tab) {
   if (currentTab === tab) return;
   currentTab = tab;
   confirmingDeleteId = null;
+  retroConfirmState = null;
   isFormOpen = false;
   refreshAll();
 }
@@ -605,26 +610,53 @@ function buildEntryRow(entry) {
   li.className = 'entry';
   li.dataset.id = String(entry.id);
 
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'entry-row';
-  btn.setAttribute('aria-label', `Delete entry: ${config.formatDisplay(entry)}`);
-  btn.addEventListener('click', () => startDeleteConfirm(entry.id));
+  const row = document.createElement('div');
+  row.className = 'entry-row';
+  row.setAttribute('role', 'button');
+  row.tabIndex = 0;
+  row.setAttribute('aria-label', `Delete entry: ${config.formatDisplay(entry)}`);
+  row.addEventListener('click', (ev) => {
+    if (ev.target.closest('button')) return;
+    startDeleteConfirm(entry.id);
+  });
+  row.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') startDeleteConfirm(entry.id);
+  });
 
   const display = document.createElement('span');
   display.className = config.inputKind === 'number' ? 'entry-value' : 'entry-text';
   display.textContent = config.formatDisplay(entry);
-
-  btn.append(display);
+  row.append(display);
 
   if (entry.type === 'food' && entry.calories) {
     const cal = document.createElement('span');
     cal.className = 'entry-calories';
     cal.textContent = `${Math.round(entry.calories)} kcal`;
-    btn.append(cal);
+    row.append(cal);
+  } else if (entry.type === 'food' && !entry.calories) {
+    const retroBtn = document.createElement('button');
+    retroBtn.type = 'button';
+    retroBtn.className = 'retro-ai-btn';
+    retroBtn.setAttribute('aria-label', 'Estimate calories');
+    retroBtn.textContent = '✨';
+    retroBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      retroBtn.textContent = '⏳';
+      retroBtn.disabled = true;
+      try {
+        const result = await requestGeminiEstimation(entry.text);
+        const newLi = buildRetroConfirmRow(entry, result);
+        li.replaceWith(newLi);
+      } catch (err) {
+        retroBtn.textContent = '✨';
+        retroBtn.disabled = false;
+        alert(`Estimation failed: ${err.message}`);
+      }
+    });
+    row.append(retroBtn);
   }
 
-  li.append(btn);
+  li.append(row);
   return li;
 }
 
@@ -663,6 +695,58 @@ function buildDeleteConfirmRow(entry) {
   actions.append(cancelBtn, deleteBtn);
   li.append(label, actions);
   return li;
+}
+
+function buildRetroConfirmRow(entry, aiResult) {
+  const li = document.createElement('li');
+  li.className = 'entry entry-deleting';
+  li.dataset.id = String(entry.id);
+
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'edit-input';
+  titleInput.value = aiResult.title || entry.text;
+
+  const calInput = document.createElement('input');
+  calInput.type = 'number';
+  calInput.step = '1';
+  calInput.className = 'edit-input edit-input-cal';
+  calInput.value = aiResult.calories;
+
+  const actions = document.createElement('div');
+  actions.className = 'edit-actions';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'btn btn-ghost';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => refreshList());
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'btn btn-primary';
+  saveBtn.textContent = 'Save';
+  saveBtn.addEventListener('click', () =>
+    saveEntryUpdate(entry, titleInput.value.trim(), calInput.value)
+  );
+
+  actions.append(cancelBtn, saveBtn);
+  li.append(titleInput, calInput, actions);
+  return li;
+}
+
+async function saveEntryUpdate(entry, newText, newCalories) {
+  const timeCategory = entry.timeCategory || getTimeCategory(entry.timestamp);
+  const updates = {
+    text: newText,
+    calories: Number(newCalories),
+    timeCategory,
+  };
+  await db.entries.update(entry.id, updates);
+  if (typeof updateEntryInSheet === 'function') {
+    updateEntryInSheet({ ...entry, ...updates }).catch(console.warn);
+  }
+  await refreshList();
 }
 
 function renderEntries(entries) {
@@ -714,6 +798,17 @@ function renderEntries(entries) {
 async function refreshList() {
   const entries = await loadEntries(currentDate, currentTab);
   renderEntries(entries);
+  if (currentTab === 'food') {
+    const total = entries.reduce((sum, e) => sum + (e.calories || 0), 0);
+    if (total > 0) {
+      els.calTotal.textContent = `Total: ${Math.round(total)} kcal`;
+      els.calTotal.hidden = false;
+    } else {
+      els.calTotal.hidden = true;
+    }
+  } else {
+    els.calTotal.hidden = true;
+  }
 }
 
 async function refreshAll() {
