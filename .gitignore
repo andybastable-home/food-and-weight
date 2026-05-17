@@ -29,3 +29,6 @@ npm-debug.log*
 # Spike artifacts at repo root (screenshots + Playwright MCP cache)
 /*.png
 .playwright-mcp/
+
+# AI context exports
+*.aicontext

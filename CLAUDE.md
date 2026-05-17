@@ -1,5 +1,32 @@
 # Project notes for Claude
 
+## Single user, single device
+
+This app has **exactly one user (Andy) on exactly one device (his Pixel 8a)**. It is not a product, not multi-tenant, not multi-device. Desktop Chrome is dev only; the phone is the only deployment.
+
+Implications:
+- No user accounts, no settings for "other users", no role abstractions.
+- No multi-device conflict resolution. Sync is one phone ↔ one Google Sheet.
+- No onboarding flow, no empty-state copy aimed at strangers, no generic "welcome" UX. Andy already knows what the app does.
+- Hard-coded assumptions about Andy's data shape (units, meal times, the specific Google Sheet) are fine and preferred over configurability.
+- "What if a user…" edge cases that require a second user or device to trigger are **not real** and should not be coded for.
+
+**Possible future exception:** Andy may eventually share this with a friend or two. That is unlikely, and if it happens it will be a deliberate scoped piece of work — not something to design for speculatively now. Build for one user; the multi-user version is a separate project.
+
+## Primary surface: installed PWA on Android (Pixel 8a)
+
+This app is **used as an installed PWA on Andy's Pixel 8a**, not as a desktop site. Desktop Chrome on Windows is for development and debugging only — it is not the deployment target.
+
+Implications for every change:
+- **Touch-first.** Tap targets ≥ 44px. No hover-only affordances. No right-click menus.
+- **Mobile viewport.** Design for ~412px wide portrait. Don't add layouts that only make sense at desktop widths.
+- **One-handed thumb reach.** Primary actions belong near the bottom of the screen, not the top.
+- **Offline / flaky network is normal.** Anything that touches sync must degrade gracefully when offline. Service worker caching matters.
+- **Mid-tier mobile perf.** Pixel 8a is capable but not a desktop. Don't ship large dependencies or heavy per-frame work.
+- **PWA install flow matters.** Don't break `manifest.json` or the service worker registration without flagging it. Andy can't easily re-install.
+
+When verifying UI work, the canonical test is "open it on the Pixel 8a installed PWA," not "open it in desktop Chrome." Desktop Chrome DevTools device emulation is acceptable for fast iteration but is not the final check.
+
 ## Working under a token budget
 
 This project runs on Claude Pro with hard usage limits. Be deliberate about context.
