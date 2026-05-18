@@ -1,9 +1,15 @@
 # Status
 
 ## Current phase
-**Phase 4 — Retro calorie estimation** (v0.5.5; needs phone verification)
+**Phase 5 — Workout calorie tracking + Settings Save button** (v0.6.4; needs phone verification)
 
 ## Last completed
+- **Workout calorie tracking + Settings Save button (v0.6.4)**:
+  - Settings modal close button changed to explicit "Save & Close" primary button.
+  - Workout tab now shows calories input + ✨ AI estimator (uses conservative workout prompt with age/sex/height/weight).
+  - Workout calories shown on entry rows and delete-confirm rows.
+  - Daily totals bar now shows `Food: X / Target: Y + Z = W kcal` (workout calories added to target) on both Food and Workout tabs.
+  - Retro ✨ button on workout entries without calories routes to `requestWorkoutEstimation`.
 - **Retro calorie estimation via ✨ button (v0.5.5)**:
   - Food entries without calories now show a ✨ button on the right.
   - Tapping ✨ fires Gemini, then expands the row into an inline review form (title + calorie inputs).
@@ -27,15 +33,16 @@
 - **Cloud Console origins**: only `https://andybastable-home.github.io` and `http://localhost:8000` are authorised.
 
 ## Next steps (phone verification)
-1. Create a food entry without calories — confirm ✨ appears on its row.
-2. Tap ✨ — it should turn ⏳, then expand into an inline form with pre-filled title + calories.
-3. Edit the calories slightly, tap Save.
-4. Check IndexedDB: entry has `calories` and `timeCategory`.
-5. Check Google Sheets: row updated in place (no duplicate), new text/calories/timeCategory visible.
+1. Settings modal: confirm close button reads "Save & Close" and dismisses the modal.
+2. Workout tab: type "1 hour mowing the lawn", tap ✨ — verify conservative calorie estimate fills in.
+3. Save workout entry — confirm row shows kcal on the right.
+4. Check bottom bar reads e.g. `Food: 0 / Target: 2100 + 350 = 2450 kcal`.
+5. Add a Food entry — confirm Food total updates, target string stays correct.
+6. Switch to Food tab — confirm same totals bar format.
 
 ## Known follow-ups
 - Edits/deletes don't sync yet — append-only log.
 - No "last synced" indicator.
 - Camera button (📷) in food form is wired to a file picker but does nothing yet — Phase 5 candidate.
 - `AI_Context` pull only fires if local is blank; no explicit "pull latest from sheet" button yet.
-- Service worker cache: `fw-shell-v0.5.5`.
+- Service worker cache: `fw-shell-v0.6.4`.

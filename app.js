@@ -247,7 +247,7 @@ async function handleAdd(type, formData) {
     entry.timeCategory = formData.timeCategory || getTimeCategory(entry.timestamp);
   }
 
-  if (type === 'food' && formData.calories) {
+  if ((type === 'food' || type === 'workout') && formData.calories) {
     const calories = parseFloat(formData.calories);
     if (!Number.isNaN(calories) && calories > 0) {
       entry.calories = calories;
@@ -313,6 +313,52 @@ async function requestGeminiEstimation(inputText) {
   if (!apiKey) throw new Error('No API key configured — set it in the AI tab.');
 
   const prompt = `You are a personal diet assistant tracker. Estimate calories for the food item using the following context guidelines:\n\n[CONTEXT]\n${contextText}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant food emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
+
+  const base = 'https://generativelanguage.googleapis.com/v1beta/models';
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json' },
+  });
+  const fetchModel = (model) => fetch(`${base}/${model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
+
+  const isQuotaError = (status) => status === 429 || status === 403;
+
+  let res = await fetchModel('gemini-2.5-flash');
+  let modelUsed = 'gemini-2.5-flash';
+  if (isQuotaError(res.status)) {
+    console.warn(`[ai] ${modelUsed} quota hit (${res.status}), falling back to gemini-2.0-flash`);
+    res = await fetchModel('gemini-2.0-flash');
+    modelUsed = 'gemini-2.0-flash';
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status} (${modelUsed}): ${text.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!raw) throw new Error('Empty response from Gemini');
+  return JSON.parse(raw);
+}
+
+async function requestWorkoutEstimation(inputText) {
+  const apiKey = (localStorage.getItem('fw_gemini_key') || '').trim();
+  if (!apiKey) throw new Error('No API key configured — set it in the AI tab.');
+
+  const age = localStorage.getItem('fw_cal_age') || 'unknown';
+  const sex = localStorage.getItem('fw_cal_sex') || 'unknown';
+  const height = localStorage.getItem('fw_cal_height') || 'unknown';
+
+  const weight = await db.entries
+    .where('type').equals('weight')
+    .reverse().sortBy('timestamp')
+    .then((rows) => rows[0]?.value ?? null);
+
+  const prompt = `You are a conservative exercise calorie estimator. Err on the side of underestimating calories burned to maintain conservative diet goals. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg.\n\n[ACTIVITY]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant activity emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
 
   const base = 'https://generativelanguage.googleapis.com/v1beta/models';
   const body = JSON.stringify({
@@ -416,8 +462,8 @@ function initSettingsPanel() {
     if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
     if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
     overlay.classList.add('hidden');
-    // Refresh the food total in case the target changed
-    if (currentTab === 'food') refreshList();
+    // Refresh totals in case the target changed
+    if (currentTab === 'food' || currentTab === 'workout') refreshList();
   }
 
   closeBtn.addEventListener('click', closePanel);
@@ -573,7 +619,7 @@ function renderEntryForm() {
   const wrap = buildInputWrap(config, input);
 
   let caloriesInput;
-  if (currentTab === 'food') {
+  if (currentTab === 'food' || currentTab === 'workout') {
     const aiStatusLog = document.createElement('div');
     aiStatusLog.className = 'ai-status-log hidden';
 
@@ -605,7 +651,9 @@ function renderEntryForm() {
       aiStatusLog.className = 'ai-status-log';
       aiStatusLog.textContent = 'Estimating…';
       try {
-        const result = await requestGeminiEstimation(text);
+        const result = currentTab === 'workout'
+          ? await requestWorkoutEstimation(text)
+          : await requestGeminiEstimation(text);
         if (result.title) input.value = result.title;
         if (result.calories) caloriesInput.value = result.calories;
         const conf = result.confidence || 'Low';
@@ -615,7 +663,7 @@ function renderEntryForm() {
         aiStatusLog.textContent = `✨ Confidence: ${conf} — ${result.reasoning || ''}`;
       } catch (err) {
         aiStatusLog.className = 'ai-status-log confidence-error';
-        const msg = err.message.includes('No API key') ? 'Set your Gemini key in the AI tab first.' : 'Request failed — check your API key or connection.';
+        const msg = err.message.includes('No API key') ? 'Set your Gemini key in Settings first.' : 'Request failed — check your API key or connection.';
         aiStatusLog.textContent = msg;
       } finally {
         aiBtn.disabled = false;
@@ -675,7 +723,7 @@ function renderEntryForm() {
       const selected = form.querySelector('input[name="timeCategory"]:checked');
       formData.timeCategory = selected ? selected.value : undefined;
     }
-    if (currentTab === 'food' && caloriesInput) {
+    if ((currentTab === 'food' || currentTab === 'workout') && caloriesInput) {
       formData.calories = caloriesInput.value;
     }
     const ok = await handleAdd(currentTab, formData);
@@ -711,12 +759,12 @@ function buildEntryRow(entry) {
   display.textContent = config.formatDisplay(entry);
   row.append(display);
 
-  if (entry.type === 'food' && entry.calories) {
+  if ((entry.type === 'food' || entry.type === 'workout') && entry.calories) {
     const cal = document.createElement('span');
     cal.className = 'entry-calories';
     cal.textContent = `${Math.round(entry.calories)} kcal`;
     row.append(cal);
-  } else if (entry.type === 'food' && !entry.calories) {
+  } else if ((entry.type === 'food' || entry.type === 'workout') && !entry.calories) {
     const retroBtn = document.createElement('button');
     retroBtn.type = 'button';
     retroBtn.className = 'retro-ai-btn';
@@ -727,7 +775,9 @@ function buildEntryRow(entry) {
       retroBtn.textContent = '⏳';
       retroBtn.disabled = true;
       try {
-        const result = await requestGeminiEstimation(entry.text);
+        const result = entry.type === 'workout'
+          ? await requestWorkoutEstimation(entry.text)
+          : await requestGeminiEstimation(entry.text);
         const newLi = buildRetroConfirmRow(entry, result);
         li.replaceWith(newLi);
       } catch (err) {
@@ -753,7 +803,7 @@ function buildDeleteConfirmRow(entry) {
   label.className = config.inputKind === 'number' ? 'entry-value' : 'entry-text';
   label.textContent = config.formatDisplay(entry);
 
-  if (entry.type === 'food' && entry.calories) {
+  if ((entry.type === 'food' || entry.type === 'workout') && entry.calories) {
     const cal = document.createElement('span');
     cal.className = 'entry-calories';
     cal.textContent = `${Math.round(entry.calories)} kcal`;
@@ -888,17 +938,22 @@ function renderEntries(entries) {
 async function refreshList() {
   const entries = await loadEntries(currentDate, currentTab);
   renderEntries(entries);
-  if (currentTab === 'food') {
-    const total = entries.reduce((sum, e) => sum + (e.calories || 0), 0);
-    if (total > 0) {
-      const target = await computeMaintenanceTarget();
-      els.calTotal.textContent = target
-        ? `${Math.round(total)} / ${target} kcal`
-        : `Total: ${Math.round(total)} kcal`;
-      els.calTotal.hidden = false;
+
+  if (currentTab === 'food' || currentTab === 'workout') {
+    const foodDay = currentTab === 'food' ? entries : await loadEntries(currentDate, 'food');
+    const workoutDay = currentTab === 'workout' ? entries : await loadEntries(currentDate, 'workout');
+    const foodTotal = foodDay.reduce((sum, e) => sum + (e.calories || 0), 0);
+    const workoutTotal = workoutDay.reduce((sum, e) => sum + (e.calories || 0), 0);
+
+    const target = await computeMaintenanceTarget();
+    if (target) {
+      const finalTarget = target + workoutTotal;
+      const targetStr = workoutTotal > 0 ? `${target} + ${workoutTotal} = ${finalTarget}` : `${target}`;
+      els.calTotal.textContent = `Food: ${Math.round(foodTotal)} / Target: ${targetStr} kcal`;
     } else {
-      els.calTotal.hidden = true;
+      els.calTotal.textContent = `Food: ${Math.round(foodTotal)} kcal / Target: Missing Weight/Settings`;
     }
+    els.calTotal.hidden = false;
   } else {
     els.calTotal.hidden = true;
   }
