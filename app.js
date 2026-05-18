@@ -411,7 +411,13 @@ function initSettingsPanel() {
   });
 
   function closePanel() {
+    // Save cal fields on close so mobile tap-dismiss doesn't lose data
+    if (sexEl) localStorage.setItem('fw_cal_sex', sexEl.value);
+    if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
+    if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
     overlay.classList.add('hidden');
+    // Refresh the food total in case the target changed
+    if (currentTab === 'food') refreshList();
   }
 
   closeBtn.addEventListener('click', closePanel);
