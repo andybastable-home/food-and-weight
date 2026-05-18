@@ -232,7 +232,7 @@ async function pullEntriesFromSheet() {
         calories: row[7] ? Number(row[7]) : undefined,
         synced: true,
       };
-      if (type === 'food') {
+      if (TYPES[type]?.inputKind === 'text') {
         entry.text = rawValue;
       } else {
         entry.value = rawValue !== '' ? Number(rawValue) : undefined;
