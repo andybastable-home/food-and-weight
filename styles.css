@@ -662,13 +662,41 @@ body {
 }
 
 .calories-total {
-  text-align: right;
+  text-align: center;
   padding: var(--space-3) var(--space-4);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-muted);
   border-top: 1px solid var(--color-border);
   margin-top: var(--space-2);
+}
+
+.cal-hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.cal-hero-num {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.cal-hero-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.calories-total.is-under .cal-hero { color: var(--color-success); }
+.calories-total.is-over  .cal-hero { color: var(--color-danger); }
+.calories-total.is-muted .cal-hero { color: var(--color-text); }
+
+.cal-detail {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ------------------------------------------------------------------

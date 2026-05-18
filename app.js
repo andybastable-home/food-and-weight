@@ -942,21 +942,60 @@ async function refreshList() {
   if (currentTab === 'food' || currentTab === 'workout') {
     const foodDay = currentTab === 'food' ? entries : await loadEntries(currentDate, 'food');
     const workoutDay = currentTab === 'workout' ? entries : await loadEntries(currentDate, 'workout');
-    const foodTotal = foodDay.reduce((sum, e) => sum + (e.calories || 0), 0);
-    const workoutTotal = workoutDay.reduce((sum, e) => sum + (e.calories || 0), 0);
-
+    const foodTotal = Math.round(foodDay.reduce((sum, e) => sum + (e.calories || 0), 0));
+    const workoutTotal = Math.round(workoutDay.reduce((sum, e) => sum + (e.calories || 0), 0));
     const target = await computeMaintenanceTarget();
-    if (target) {
-      const finalTarget = target + workoutTotal;
-      const targetStr = workoutTotal > 0 ? `${target} + ${workoutTotal} = ${finalTarget}` : `${target}`;
-      els.calTotal.textContent = `Food: ${Math.round(foodTotal)} / Target: ${targetStr} kcal`;
-    } else {
-      els.calTotal.textContent = `Food: ${Math.round(foodTotal)} kcal / Target: Missing Weight/Settings`;
-    }
+
+    renderCalorieTotal({ foodTotal, workoutTotal, target });
     els.calTotal.hidden = false;
   } else {
     els.calTotal.hidden = true;
   }
+}
+
+function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
+  els.calTotal.replaceChildren();
+  els.calTotal.classList.remove('is-under', 'is-over', 'is-muted');
+
+  if (!target) {
+    els.calTotal.classList.add('is-muted');
+    const eaten = document.createElement('div');
+    eaten.className = 'cal-hero';
+    const num = document.createElement('span');
+    num.className = 'cal-hero-num';
+    num.textContent = foodTotal.toLocaleString();
+    const label = document.createElement('span');
+    label.className = 'cal-hero-label';
+    label.textContent = ' kcal eaten';
+    eaten.append(num, label);
+    const hint = document.createElement('div');
+    hint.className = 'cal-detail';
+    hint.textContent = 'set weight & profile for target';
+    els.calTotal.append(eaten, hint);
+    return;
+  }
+
+  const finalTarget = target + workoutTotal;
+  const remaining = finalTarget - foodTotal;
+  const isUnder = remaining >= 0;
+  els.calTotal.classList.add(isUnder ? 'is-under' : 'is-over');
+
+  const hero = document.createElement('div');
+  hero.className = 'cal-hero';
+  const num = document.createElement('span');
+  num.className = 'cal-hero-num';
+  num.textContent = Math.abs(remaining).toLocaleString();
+  const label = document.createElement('span');
+  label.className = 'cal-hero-label';
+  label.textContent = isUnder ? ' kcal left' : ' kcal over';
+  hero.append(num, label);
+
+  const detail = document.createElement('div');
+  detail.className = 'cal-detail';
+  const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} workout)` : '';
+  detail.textContent = `eaten ${foodTotal.toLocaleString()} · target ${target.toLocaleString()}${workoutPart}`;
+
+  els.calTotal.append(hero, detail);
 }
 
 async function refreshAll() {
