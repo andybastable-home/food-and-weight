@@ -335,6 +335,12 @@ body {
 }
 .entry-input[type="number"] { -moz-appearance: textfield; }
 
+.entry-input--multiline {
+  resize: none;
+  min-height: 64px;
+  line-height: 1.4;
+}
+
 .entry-input-wrap.has-unit .entry-input { padding-right: 48px; }
 
 .entry-input-unit {

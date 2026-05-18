@@ -34,6 +34,7 @@ const TYPES = {
     label: 'Food',
     placeholder: 'What did you eat?',
     inputKind: 'text',
+    multiline: true,
     hasTimeCategory: true,
     isCollapsible: true,
     formatDisplay: (e) => e.text,
@@ -324,14 +325,18 @@ async function requestGeminiEstimation(inputText) {
     body,
   });
 
+  const isQuotaError = (status) => status === 429 || status === 403;
+
   let res = await fetchModel('gemini-2.5-flash');
-  if (res.status === 429) {
-    console.warn('[ai] gemini-2.5-flash quota hit, falling back to gemini-2.0-flash');
+  let modelUsed = 'gemini-2.5-flash';
+  if (isQuotaError(res.status)) {
+    console.warn(`[ai] ${modelUsed} quota hit (${res.status}), falling back to gemini-2.0-flash`);
     res = await fetchModel('gemini-2.0-flash');
+    modelUsed = 'gemini-2.0-flash';
   }
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text.slice(0, 120)}`);
+    throw new Error(`API error ${res.status} (${modelUsed}): ${text.slice(0, 200)}`);
   }
 
   const data = await res.json();
@@ -348,6 +353,44 @@ function loadSettingsValues() {
   const ctxEl = document.getElementById('cfg-ai-context');
   if (keyEl) keyEl.value = localStorage.getItem('fw_gemini_key') || '';
   if (ctxEl) ctxEl.value = localStorage.getItem('fw_gemini_context') || '';
+
+  const sexEl = document.getElementById('cfg-cal-sex');
+  const ageEl = document.getElementById('cfg-cal-age');
+  const htEl = document.getElementById('cfg-cal-height');
+  if (sexEl) sexEl.value = localStorage.getItem('fw_cal_sex') || '';
+  if (ageEl) ageEl.value = localStorage.getItem('fw_cal_age') || '';
+  if (htEl) htEl.value = localStorage.getItem('fw_cal_height') || '';
+  updateCalTargetPreview();
+}
+
+async function updateCalTargetPreview() {
+  const preview = document.getElementById('cfg-cal-preview');
+  if (!preview) return;
+  const target = await computeMaintenanceTarget();
+  if (target) {
+    preview.textContent = `Estimated maintenance: ${target} kcal/day (sedentary ×1.2). Workout calories will be added in future.`;
+  } else {
+    preview.textContent = 'Weight is taken from your most recent logged entry. Target uses sedentary activity (×1.2); workout calories will be added in future.';
+  }
+}
+
+async function computeMaintenanceTarget() {
+  const sex = localStorage.getItem('fw_cal_sex') || '';
+  const age = parseFloat(localStorage.getItem('fw_cal_age') || '');
+  const height = parseFloat(localStorage.getItem('fw_cal_height') || '');
+  if (!sex || !age || !height) return null;
+
+  const latestWeight = await db.entries
+    .where('type').equals('weight')
+    .reverse().sortBy('timestamp')
+    .then((rows) => rows[0]?.value ?? null);
+  if (!latestWeight) return null;
+
+  // Mifflin-St Jeor BMR
+  const bmr = sex === 'male'
+    ? 10 * latestWeight + 6.25 * height - 5 * age + 5
+    : 10 * latestWeight + 6.25 * height - 5 * age - 161;
+  return Math.round(bmr * 1.2);
 }
 
 function initSettingsPanel() {
@@ -356,6 +399,9 @@ function initSettingsPanel() {
   const closeBtn = document.getElementById('settings-close');
   const keyEl = document.getElementById('cfg-ai-key');
   const ctxEl = document.getElementById('cfg-ai-context');
+  const sexEl = document.getElementById('cfg-cal-sex');
+  const ageEl = document.getElementById('cfg-cal-age');
+  const htEl = document.getElementById('cfg-cal-height');
 
   if (!btn || !overlay) return;
 
@@ -381,6 +427,17 @@ function initSettingsPanel() {
       pushContextToSheet(ctxEl.value).catch(() => {});
     }
   });
+
+  function saveCalField() {
+    if (sexEl) localStorage.setItem('fw_cal_sex', sexEl.value);
+    if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
+    if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
+    updateCalTargetPreview();
+  }
+
+  if (sexEl) sexEl.addEventListener('change', saveCalField);
+  if (ageEl) ageEl.addEventListener('blur', saveCalField);
+  if (htEl) htEl.addEventListener('blur', saveCalField);
 }
 
 // ------------------------------------------------------------------
@@ -406,7 +463,21 @@ function renderDateNav() {
 }
 
 function buildPrimaryInput(config, initialValue) {
-  const input = document.createElement('input');
+  let input;
+
+  if (config.multiline) {
+    input = document.createElement('textarea');
+    input.className = 'entry-input entry-input--multiline';
+    input.required = true;
+    input.maxLength = 500;
+    input.name = 'text';
+    input.rows = 2;
+    input.value = initialValue ?? '';
+    input.placeholder = config.placeholder;
+    return input;
+  }
+
+  input = document.createElement('input');
   input.className = 'entry-input';
   input.required = true;
   input.maxLength = 500;
@@ -814,7 +885,10 @@ async function refreshList() {
   if (currentTab === 'food') {
     const total = entries.reduce((sum, e) => sum + (e.calories || 0), 0);
     if (total > 0) {
-      els.calTotal.textContent = `Total: ${Math.round(total)} kcal`;
+      const target = await computeMaintenanceTarget();
+      els.calTotal.textContent = target
+        ? `${Math.round(total)} / ${target} kcal`
+        : `Total: ${Math.round(total)} kcal`;
       els.calTotal.hidden = false;
     } else {
       els.calTotal.hidden = true;
