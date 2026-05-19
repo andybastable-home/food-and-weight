@@ -407,7 +407,7 @@ async function requestGeminiEstimation(inputText) {
   return JSON.parse(raw);
 }
 
-async function requestWorkoutEstimation(inputText) {
+async function requestWorkoutEstimation(inputText, effort) {
   const apiKey = (localStorage.getItem('fw_gemini_key') || '').trim();
   if (!apiKey) throw new Error('No API key configured — set it in the AI tab.');
 
@@ -420,7 +420,15 @@ async function requestWorkoutEstimation(inputText) {
     .reverse().sortBy('timestamp')
     .then((rows) => rows[0]?.value ?? null);
 
-  const prompt = `You are a conservative exercise calorie estimator. Err on the side of underestimating calories burned to maintain conservative diet goals. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg.\n\n[ACTIVITY]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant activity emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
+  const EFFORT_DESCRIPTIONS = {
+    low: 'Low — conversational pace, can hold a continuous conversation, RPE ~3-4/10.',
+    med: 'Medium — breathing harder, short sentences only, RPE ~5-6/10.',
+    high: 'High — near-maximal, can barely speak, RPE ~7-9/10.',
+  };
+  const effortKey = (effort || 'low').toLowerCase();
+  const effortLine = EFFORT_DESCRIPTIONS[effortKey] || EFFORT_DESCRIPTIONS.low;
+
+  const prompt = `You are a conservative exercise calorie estimator. Err on the side of underestimating calories burned to maintain conservative diet goals. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg.\n\n[ACTIVITY]\n${inputText}\n\n[EFFORT]\nUser-reported effort: ${effortKey} — ${effortLine}\nUse this to calibrate intensity assumptions (pace, heart-rate zone, work-to-rest ratio).\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant activity emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
 
   const base = 'https://generativelanguage.googleapis.com/v1beta/models';
   const body = JSON.stringify({
@@ -745,9 +753,14 @@ function renderEntryForm() {
       aiStatusLog.className = 'ai-status-log';
       aiStatusLog.textContent = 'Estimating…';
       try {
-        const result = currentTab === 'workout'
-          ? await requestWorkoutEstimation(text)
-          : await requestGeminiEstimation(text);
+        let result;
+        if (currentTab === 'workout') {
+          const effortSelected = form.querySelector('input[name="effort"]:checked');
+          const effort = effortSelected ? effortSelected.value : 'low';
+          result = await requestWorkoutEstimation(text, effort);
+        } else {
+          result = await requestGeminiEstimation(text);
+        }
         // Stash lineage on the form so submit can pick it up. The user's
         // pre-AI text is captured before we overwrite the input.
         form.dataset.rawInput = text;
@@ -893,7 +906,7 @@ function buildEntryRow(entry) {
       retroBtn.disabled = true;
       try {
         const result = entry.type === 'workout'
-          ? await requestWorkoutEstimation(entry.text)
+          ? await requestWorkoutEstimation(entry.text, entry.effort || 'low')
           : await requestGeminiEstimation(entry.text);
         const newLi = buildRetroConfirmRow(entry, result);
         li.replaceWith(newLi);
