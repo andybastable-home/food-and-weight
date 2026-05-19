@@ -763,10 +763,13 @@ body {
 }
 
 .cal-status {
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-size: 19px;
   font-weight: 600;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
   color: var(--color-text);
+  font-variation-settings: "opsz" 36;
 }
 
 .calories-total.is-under .cal-status { color: var(--color-success); }
