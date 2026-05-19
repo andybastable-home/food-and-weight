@@ -32,9 +32,35 @@ db.version(2).stores({
     if (!e.uuid) e.uuid = crypto.randomUUID();
   });
 });
+db.version(3).stores({
+  entries: '++id, &uuid, type, timestamp',
+}).upgrade(async (tx) => {
+  await tx.table('entries').toCollection().modify((e) => {
+    // Weight entries: AM-fasted convention. Backfill timeCategory.
+    if (e.type === 'weight' && !e.timeCategory) e.timeCategory = 'Morning';
+    // Pre-feature entries: raw_input unknown, fall back to canonical text/value.
+    if (e.rawInput == null) e.rawInput = e.text ?? (e.value != null ? String(e.value) : '');
+    // Pre-feature entries with calories were user-typed (no AI provenance recorded).
+    if ((e.type === 'food' || e.type === 'workout') && e.calories != null && !e.calorieSource) {
+      e.calorieSource = 'user';
+    }
+    // Backfill conservative effort default for historic workouts.
+    if (e.type === 'workout' && !e.effort) e.effort = 'low';
+  });
+});
 
 // Sheet format version this build knows how to read/write.
-const SHEET_SCHEMA_VERSION = 2;
+const SHEET_SCHEMA_VERSION = 3;
+
+// Map Gemini's confidence labels to compact storage values.
+function mapConfidence(geminiConf) {
+  switch ((geminiConf || '').toLowerCase()) {
+    case 'excellent': return 'high';
+    case 'moderate': return 'med';
+    case 'low': return 'low';
+    default: return '';
+  }
+}
 
 // ------------------------------------------------------------------
 // Type config — single source of truth for per-type behavior
@@ -74,6 +100,7 @@ const TYPES = {
     placeholder: 'What did you do?',
     inputKind: 'text',
     hasTimeCategory: true,
+    hasEffort: true,
     isCollapsible: true,
     formatDisplay: (e) => e.text,
   },
@@ -241,19 +268,29 @@ async function handleAdd(type, formData) {
     const text = (formData.text || '').trim();
     if (!text) return false;
     entry.text = text;
+    // Raw input = what the user originally typed, before AI canonicalisation.
+    // If AI overwrote the input field, formData.rawInput holds the pre-AI string;
+    // otherwise the typed text is itself the raw input.
+    entry.rawInput = (formData.rawInput || '').trim() || text;
   } else {
     const value = parseFloat(formData.value);
     if (Number.isNaN(value) || value <= 0) return false;
     entry.value = value;
+    entry.rawInput = String(value);
   }
 
-  if (isSameDay(currentDate, new Date())) {
+  // Weight is AM-fasted by convention: store at noon-of-day, tag as Morning,
+  // strip time-of-day noise so intra-day re-weighs can't pollute the trend.
+  if (type === 'weight') {
+    entry.timestamp = combineDayAndTime(currentDate, '12:00');
+    entry.timeCategory = 'Morning';
+  } else if (isSameDay(currentDate, new Date())) {
     entry.timestamp = Date.now();
   } else {
     entry.timestamp = combineDayAndTime(currentDate, '12:00');
   }
 
-  if (config.hasTimeCategory) {
+  if (config.hasTimeCategory && type !== 'weight') {
     entry.timeCategory = formData.timeCategory || getTimeCategory(entry.timestamp);
   }
 
@@ -261,7 +298,21 @@ async function handleAdd(type, formData) {
     const calories = parseFloat(formData.calories);
     if (!Number.isNaN(calories) && calories > 0) {
       entry.calories = calories;
+      // Lineage: if Gemini was invoked, formData carries the AI's suggestion;
+      // the source is 'gemini' even if the user revised the number afterwards.
+      if (formData.aiSuggestedCalories != null) {
+        entry.aiSuggestedTitle = formData.aiSuggestedTitle || '';
+        entry.aiSuggestedCalories = Number(formData.aiSuggestedCalories);
+        entry.calorieConfidence = mapConfidence(formData.aiConfidence);
+        entry.calorieSource = 'gemini';
+      } else {
+        entry.calorieSource = 'user';
+      }
     }
+  }
+
+  if (config.hasEffort) {
+    entry.effort = formData.effort || 'low';
   }
 
   const id = await db.entries.add(entry);
@@ -605,6 +656,38 @@ function buildCategoryPills(selectedCategory) {
   return container;
 }
 
+const EFFORT_LEVELS = [
+  { value: 'low', label: 'Low' },
+  { value: 'med', label: 'Med' },
+  { value: 'high', label: 'High' },
+];
+
+function buildEffortPills(selectedValue) {
+  const container = document.createElement('div');
+  container.className = 'category-pills effort-pills';
+
+  for (const { value, label: labelText } of EFFORT_LEVELS) {
+    const label = document.createElement('label');
+    label.className = 'category-pill';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'effort';
+    radio.value = value;
+    radio.checked = value === selectedValue;
+    radio.className = 'category-radio';
+
+    const span = document.createElement('span');
+    span.textContent = labelText;
+
+    label.appendChild(radio);
+    label.appendChild(span);
+    container.appendChild(label);
+  }
+
+  return container;
+}
+
 function renderEntryForm() {
   const config = TYPES[currentTab];
 
@@ -665,8 +748,18 @@ function renderEntryForm() {
         const result = currentTab === 'workout'
           ? await requestWorkoutEstimation(text)
           : await requestGeminiEstimation(text);
-        if (result.title) input.value = result.title;
-        if (result.calories) caloriesInput.value = result.calories;
+        // Stash lineage on the form so submit can pick it up. The user's
+        // pre-AI text is captured before we overwrite the input.
+        form.dataset.rawInput = text;
+        if (result.title) {
+          form.dataset.aiSuggestedTitle = result.title;
+          input.value = result.title;
+        }
+        if (result.calories != null) {
+          form.dataset.aiSuggestedCalories = String(result.calories);
+          caloriesInput.value = result.calories;
+        }
+        if (result.confidence) form.dataset.aiConfidence = result.confidence;
         const conf = result.confidence || 'Low';
         const cls = conf === 'Excellent' ? 'confidence-excellent'
           : conf === 'Moderate' ? 'confidence-moderate' : 'confidence-low';
@@ -718,6 +811,10 @@ function renderEntryForm() {
     form.appendChild(pills);
   }
 
+  if (config.hasEffort) {
+    form.appendChild(buildEffortPills('low'));
+  }
+
   const saveBtn = document.createElement('button');
   saveBtn.type = 'submit';
   saveBtn.className = 'btn btn-primary';
@@ -734,9 +831,18 @@ function renderEntryForm() {
       const selected = form.querySelector('input[name="timeCategory"]:checked');
       formData.timeCategory = selected ? selected.value : undefined;
     }
+    if (config.hasEffort) {
+      const selected = form.querySelector('input[name="effort"]:checked');
+      formData.effort = selected ? selected.value : 'low';
+    }
     if ((currentTab === 'food' || currentTab === 'workout') && caloriesInput) {
       formData.calories = caloriesInput.value;
     }
+    // AI lineage stashed by the ✨ handler on the form's dataset.
+    if (form.dataset.rawInput) formData.rawInput = form.dataset.rawInput;
+    if (form.dataset.aiSuggestedTitle) formData.aiSuggestedTitle = form.dataset.aiSuggestedTitle;
+    if (form.dataset.aiSuggestedCalories) formData.aiSuggestedCalories = form.dataset.aiSuggestedCalories;
+    if (form.dataset.aiConfidence) formData.aiConfidence = form.dataset.aiConfidence;
     const ok = await handleAdd(currentTab, formData);
     if (ok) {
       renderEntryForm();
@@ -871,7 +977,7 @@ function buildRetroConfirmRow(entry, aiResult) {
   saveBtn.className = 'btn btn-primary';
   saveBtn.textContent = 'Save';
   saveBtn.addEventListener('click', () =>
-    saveEntryUpdate(entry, titleInput.value.trim(), calInput.value)
+    saveEntryUpdate(entry, titleInput.value.trim(), calInput.value, aiResult)
   );
 
   const conf = aiResult.confidence || 'Low';
@@ -886,13 +992,22 @@ function buildRetroConfirmRow(entry, aiResult) {
   return li;
 }
 
-async function saveEntryUpdate(entry, newText, newCalories) {
+async function saveEntryUpdate(entry, newText, newCalories, aiResult) {
   const timeCategory = entry.timeCategory || getTimeCategory(entry.timestamp);
   const updates = {
     text: newText,
     calories: Number(newCalories),
     timeCategory,
   };
+  if (aiResult) {
+    // entry.text is what the user originally typed (pre-AI). Preserve as raw_input
+    // unless an earlier estimation already recorded one.
+    if (!entry.rawInput) updates.rawInput = entry.text;
+    updates.aiSuggestedTitle = aiResult.title || '';
+    if (aiResult.calories != null) updates.aiSuggestedCalories = Number(aiResult.calories);
+    updates.calorieConfidence = mapConfidence(aiResult.confidence);
+    updates.calorieSource = 'gemini';
+  }
   await db.entries.update(entry.id, updates);
   if (typeof updateEntryInSheet === 'function') {
     updateEntryInSheet({ ...entry, ...updates }).catch(console.warn);
