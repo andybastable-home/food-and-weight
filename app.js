@@ -25,6 +25,16 @@ const db = new Dexie('FoodAndWeight');
 db.version(1).stores({
   entries: '++id, type, timestamp',
 });
+db.version(2).stores({
+  entries: '++id, &uuid, type, timestamp',
+}).upgrade(async (tx) => {
+  await tx.table('entries').toCollection().modify((e) => {
+    if (!e.uuid) e.uuid = crypto.randomUUID();
+  });
+});
+
+// Sheet format version this build knows how to read/write.
+const SHEET_SCHEMA_VERSION = 2;
 
 // ------------------------------------------------------------------
 // Type config — single source of truth for per-type behavior
@@ -225,7 +235,7 @@ async function loadEntries(date, type) {
 // ------------------------------------------------------------------
 async function handleAdd(type, formData) {
   const config = TYPES[type];
-  const entry = { type };
+  const entry = { type, uuid: crypto.randomUUID() };
 
   if (config.inputKind === 'text') {
     const text = (formData.text || '').trim();
@@ -267,10 +277,11 @@ async function handleAdd(type, formData) {
 }
 
 async function confirmAndDelete(id) {
+  const entry = await db.entries.get(id);
   await db.entries.delete(id);
   confirmingDeleteId = null;
-  if (typeof deleteEntryFromSheet === 'function') {
-    deleteEntryFromSheet(id).catch(() => {});
+  if (entry?.uuid && typeof deleteEntryFromSheet === 'function') {
+    deleteEntryFromSheet(entry.uuid).catch(() => {});
   }
   await refreshList();
 }

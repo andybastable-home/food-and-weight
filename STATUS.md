@@ -1,7 +1,9 @@
 # Status
 
 ## Current phase
-**Phase 5 — Workout calorie tracking + Settings Save button** (v0.6.4; needs phone verification)
+**Phase 6 — Cross-device sync** (v0.8.0; needs phone verification + PC attach test)
+
+Goal: PC-as-second-device. Stable UUIDs, attach-existing-sheet UX, schema versioning, manual refresh.
 
 ## Last completed
 - **Workout calorie tracking + Settings Save button (v0.6.4)**:
@@ -32,17 +34,16 @@
 - **`prompt: ''`** = silent if prior consent; `prompt: 'none'` hangs silently — don't use.
 - **Cloud Console origins**: only `https://andybastable-home.github.io` and `http://localhost:8000` are authorised.
 
-## Next steps (phone verification)
-1. Settings modal: confirm close button reads "Save & Close" and dismisses the modal.
-2. Workout tab: type "1 hour mowing the lawn", tap ✨ — verify conservative calorie estimate fills in.
-3. Save workout entry — confirm row shows kcal on the right.
-4. Check bottom bar reads e.g. `Food: 0 / Target: 2100 + 350 = 2450 kcal`.
-5. Add a Food entry — confirm Food total updates, target string stays correct.
-6. Switch to Food tab — confirm same totals bar format.
+## Next steps (verification)
+1. **Backup the sheet in Drive** — done.
+2. Launch v0.8.0 on phone: watch console for `Migrating sheet v1→v2…` then `Sheet at v2`. Open the sheet in Drive: column A is uuids, `Metadata!B1 = 2`.
+3. Reload phone: migration must NOT run again.
+4. Add/edit/delete an entry on phone → confirm sheet stays at v2 with uuids.
+5. Open the URL in Chrome on PC, sign in to same account, paste sheet URL in Settings → Connect.
+6. Add a food entry on PC, then on phone tap "Refresh from sheet" — PC entry appears.
 
 ## Known follow-ups
-- Edits/deletes don't sync yet — append-only log.
 - No "last synced" indicator.
-- Camera button (📷) in food form is wired to a file picker but does nothing yet — Phase 5 candidate.
-- `AI_Context` pull only fires if local is blank; no explicit "pull latest from sheet" button yet.
-- Service worker cache: `fw-shell-v0.6.4`.
+- Camera button (📷) in food form is wired to a file picker but does nothing yet.
+- No tombstones — cross-device deletes don't propagate to other devices' local cache. Accepted per "don't worry about it" policy.
+- Service worker cache: `fw-shell-v0.8.0`.

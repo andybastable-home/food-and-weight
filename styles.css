@@ -1021,6 +1021,16 @@ body {
   align-items: center;
 }
 
+.sync-status {
+  margin: var(--space-2) 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  min-height: 1.2em;
+}
+.sync-status.is-info  { color: var(--color-text-muted); }
+.sync-status.is-ok    { color: var(--color-success); }
+.sync-status.is-error { color: var(--color-danger); }
+
 /* ------------------------------------------------------------------
    Footer
 ------------------------------------------------------------------ */
