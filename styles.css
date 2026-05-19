@@ -408,6 +408,40 @@ body {
 .entry-input-wrap:has(.camera-button) .entry-input { padding-right: 80px; }
 .entry-input-wrap:has(.ai-button):has(.camera-button) .entry-input { padding-right: 80px; }
 
+.match-chip-row {
+  flex: 1 0 100%;
+}
+.match-chip-row.hidden { display: none; }
+.match-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  border: 1.5px solid hsl(210 30% 80%);
+  background: hsl(210 20% 97%);
+  color: hsl(210 25% 30%);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.match-chip:active { background: hsl(210 20% 92%); border-color: hsl(210 30% 65%); }
+.match-chip-title { flex: 1; font-weight: 500; }
+.match-chip-kcal { color: hsl(210 20% 50%); white-space: nowrap; }
+
+@media (prefers-color-scheme: dark) {
+  .match-chip {
+    border-color: hsl(210 20% 30%);
+    background: hsl(210 15% 18%);
+    color: hsl(210 20% 80%);
+  }
+  .match-chip:active { background: hsl(210 15% 22%); border-color: hsl(210 20% 40%); }
+  .match-chip-kcal { color: hsl(210 15% 55%); }
+}
+
 .category-pills {
   display: flex;
   gap: var(--space-2);
@@ -860,12 +894,14 @@ body {
 .ai-status-log.confidence-moderate  { color: hsl(32 90% 40%);             border-color: hsl(32 70% 75%); }
 .ai-status-log.confidence-low       { color: hsl(2 60% 48%);              border-color: hsl(2 60% 80%);  }
 .ai-status-log.confidence-error     { color: hsl(2 65% 45%);              border-color: hsl(2 55% 80%);  background: var(--color-danger-soft); }
+.ai-status-log.confidence-match     { color: hsl(210 40% 40%);            border-color: hsl(210 30% 75%); }
 
 @media (prefers-color-scheme: dark) {
   .ai-status-log.confidence-excellent { color: var(--color-accent);      border-color: hsl(160 30% 30%); }
   .ai-status-log.confidence-moderate  { color: hsl(32 80% 60%);          border-color: hsl(32 40% 30%); }
   .ai-status-log.confidence-low       { color: hsl(2 70% 62%);           border-color: hsl(2 40% 30%); }
   .ai-status-log.confidence-error     { color: var(--color-danger);       border-color: hsl(2 35% 28%); background: var(--color-danger-soft); }
+  .ai-status-log.confidence-match     { color: hsl(210 40% 70%);         border-color: hsl(210 25% 30%); }
 }
 
 /* ------------------------------------------------------------------

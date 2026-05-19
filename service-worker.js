@@ -1,8 +1,9 @@
 // Bump CACHE_VERSION whenever shell files change so updates roll cleanly.
-const CACHE_VERSION = 'v0.9.2';
+const CACHE_VERSION = 'v0.10.0';
 const CACHE_NAME = `fw-shell-${CACHE_VERSION}`;
 
 const DEXIE_URL = 'https://unpkg.com/dexie@4.4.2/dist/dexie.min.js';
+const UFUZZY_URL = 'https://unpkg.com/@leeoniya/ufuzzy@1.0.18/dist/uFuzzy.iife.min.js';
 
 const SHELL = [
   './',
@@ -14,6 +15,7 @@ const SHELL = [
   './icons/icon.svg',
   './assets/fonts/fraunces-latin.woff2',
   DEXIE_URL,
+  UFUZZY_URL,
 ];
 
 self.addEventListener('install', (event) => {

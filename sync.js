@@ -555,6 +555,7 @@ async function pullEntriesFromSheet() {
 
     console.log(`[sync] Pulled ${added + updated} entries (${added} new, ${updated} updated, ${removed} removed)`);
     if (typeof refreshList === 'function') refreshList();
+    if (typeof rebuildFrequentFoods === 'function') rebuildFrequentFoods();
     return added + updated + removed;
   } catch (err) {
     console.warn('[sync] pullEntriesFromSheet failed:', err.message);

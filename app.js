@@ -305,6 +305,11 @@ async function handleAdd(type, formData) {
         entry.aiSuggestedCalories = Number(formData.aiSuggestedCalories);
         entry.calorieConfidence = mapConfidence(formData.aiConfidence);
         entry.calorieSource = 'gemini';
+      } else if (formData.matchedTitle) {
+        entry.aiSuggestedTitle = formData.matchedTitle;
+        entry.aiSuggestedCalories = Number(formData.matchedCalories);
+        entry.calorieConfidence = formData.matchedConfidence || '';
+        entry.calorieSource = 'match';
       } else {
         entry.calorieSource = 'user';
       }
@@ -316,6 +321,7 @@ async function handleAdd(type, formData) {
   }
 
   const id = await db.entries.add(entry);
+  if (type === 'food') rebuildFrequentFoods();
   const savedEntry = { ...entry, id };
   if (typeof syncEntriesToSheet === 'function') {
     syncEntriesToSheet([savedEntry])
@@ -459,6 +465,62 @@ async function requestWorkoutEstimation(inputText, effort) {
   const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) throw new Error('Empty response from Gemini');
   return JSON.parse(raw);
+}
+
+// ------------------------------------------------------------------
+// Frequent-items index (local fuzzy match for repeat foods)
+// ------------------------------------------------------------------
+let frequentFoods = [];
+let frequentHaystack = [];
+let frequentIndexBy = [];
+const uf = new uFuzzy({ intraMode: 1, intraIns: 1, intraSub: 1, intraTrn: 1, intraDel: 1 });
+const FREQUENT_THRESHOLD = 3;
+const MIN_QUERY_LEN = 2;
+
+async function rebuildFrequentFoods() {
+  const all = await db.entries.where('type').equals('food').toArray();
+  const groups = new Map();
+  for (const entry of all) {
+    const canonicalTitle = (entry.aiSuggestedTitle || entry.text || '').trim();
+    const canonicalKcal = entry.aiSuggestedCalories ?? entry.calories;
+    if (!canonicalTitle || canonicalKcal == null) continue;
+    if (!groups.has(canonicalTitle)) groups.set(canonicalTitle, []);
+    groups.get(canonicalTitle).push(entry);
+  }
+
+  const items = [];
+  for (const [title, grpEntries] of groups) {
+    if (grpEntries.length < FREQUENT_THRESHOLD) continue;
+    grpEntries.sort((a, b) => b.timestamp - a.timestamp);
+    const latest = grpEntries[0];
+    const canonicalKcal = latest.aiSuggestedCalories ?? latest.calories;
+    const rawSet = new Set();
+    for (const e of grpEntries) {
+      if (e.rawInput) rawSet.add(e.rawInput.toLowerCase());
+      if (e.text) rawSet.add(e.text.toLowerCase());
+      if (rawSet.size >= 6) break;
+    }
+    items.push({
+      title,
+      calories: canonicalKcal,
+      confidence: latest.calorieConfidence || '',
+      count: grpEntries.length,
+      lastTs: latest.timestamp,
+      rawInputs: Array.from(rawSet),
+    });
+  }
+
+  items.sort((a, b) => b.lastTs - a.lastTs);
+  frequentFoods = items;
+  frequentHaystack = items.map((item) => item.title.toLowerCase() + ' | ' + item.rawInputs.join(' | '));
+  frequentIndexBy = items.map((_, i) => i);
+}
+
+function matchFrequent(query) {
+  if (!query || query.length < MIN_QUERY_LEN || !frequentFoods.length) return null;
+  const [idxs] = uf.search(frequentHaystack, query, 0, 1000);
+  if (!idxs || idxs.length === 0) return null;
+  return frequentFoods[frequentIndexBy[idxs[0]]];
 }
 
 // ------------------------------------------------------------------
@@ -722,6 +784,8 @@ function renderEntryForm() {
 
   let caloriesInput;
   if (currentTab === 'food' || currentTab === 'workout') {
+    let hideChip = () => {};
+
     const aiStatusLog = document.createElement('div');
     aiStatusLog.className = 'ai-status-log hidden';
 
@@ -764,6 +828,7 @@ function renderEntryForm() {
         // Stash lineage on the form so submit can pick it up. The user's
         // pre-AI text is captured before we overwrite the input.
         form.dataset.rawInput = text;
+        hideChip();
         if (result.title) {
           form.dataset.aiSuggestedTitle = result.title;
           input.value = result.title;
@@ -811,11 +876,66 @@ function renderEntryForm() {
 
       caloriesWrap.appendChild(cameraBtn);
       caloriesWrap.appendChild(hiddenFileInput);
+
+      const chipRow = document.createElement('div');
+      chipRow.className = 'match-chip-row hidden';
+      const chipBtn = document.createElement('button');
+      chipBtn.type = 'button';
+      chipBtn.className = 'match-chip';
+      const chipTitle = document.createElement('span');
+      chipTitle.className = 'match-chip-title';
+      const chipKcal = document.createElement('span');
+      chipKcal.className = 'match-chip-kcal';
+      chipBtn.append(chipTitle, chipKcal);
+      chipRow.appendChild(chipBtn);
+
+      hideChip = () => chipRow.classList.add('hidden');
+
+      let chipDebounce = null;
+      function matchAndRenderChip() {
+        const query = input.value.trim().toLowerCase();
+        if (query.length < MIN_QUERY_LEN || form.dataset.aiSuggestedTitle) {
+          hideChip();
+          return;
+        }
+        const match = matchFrequent(query);
+        if (!match) { hideChip(); return; }
+        chipTitle.textContent = match.title;
+        chipKcal.textContent = `${match.calories} kcal`;
+        chipRow._match = match;
+        chipRow.classList.remove('hidden');
+      }
+
+      input.addEventListener('input', () => {
+        clearTimeout(chipDebounce);
+        chipDebounce = setTimeout(matchAndRenderChip, 200);
+      });
+
+      chipBtn.addEventListener('click', () => {
+        const match = chipRow._match;
+        if (!match) return;
+        form.dataset.rawInput = input.value.trim();
+        form.dataset.matchedTitle = match.title;
+        form.dataset.matchedCalories = String(match.calories);
+        form.dataset.matchedConfidence = match.confidence;
+        input.value = match.title;
+        caloriesInput.value = match.calories;
+        hideChip();
+        aiStatusLog.className = 'ai-status-log confidence-match';
+        aiStatusLog.textContent = `↩ Matched past entry (${match.count}×)`;
+      });
+
+      form.appendChild(wrap);
+      form.appendChild(aiStatusLog);
+      form.appendChild(caloriesWrap);
+      form.appendChild(chipRow);
+    } else {
+      // workout branch
+      form.appendChild(wrap);
+      form.appendChild(aiStatusLog);
+      form.appendChild(caloriesWrap);
     }
 
-    form.appendChild(wrap);
-    form.appendChild(aiStatusLog);
-    form.appendChild(caloriesWrap);
   } else {
     form.appendChild(wrap);
   }
@@ -859,6 +979,9 @@ function renderEntryForm() {
     if (form.dataset.aiSuggestedTitle) formData.aiSuggestedTitle = form.dataset.aiSuggestedTitle;
     if (form.dataset.aiSuggestedCalories) formData.aiSuggestedCalories = form.dataset.aiSuggestedCalories;
     if (form.dataset.aiConfidence) formData.aiConfidence = form.dataset.aiConfidence;
+    if (form.dataset.matchedTitle) formData.matchedTitle = form.dataset.matchedTitle;
+    if (form.dataset.matchedCalories) formData.matchedCalories = form.dataset.matchedCalories;
+    if (form.dataset.matchedConfidence) formData.matchedConfidence = form.dataset.matchedConfidence;
     const ok = await handleAdd(currentTab, formData);
     if (ok) {
       renderEntryForm();
@@ -1211,6 +1334,7 @@ function init() {
     setDate(addDays(currentDate, 1));
   });
   initSettingsPanel();
+  rebuildFrequentFoods();
   refreshAll();
 }
 
