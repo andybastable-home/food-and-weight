@@ -789,27 +789,29 @@ function renderEntryForm() {
     });
     caloriesWrap.appendChild(aiBtn);
 
-    const cameraBtn = document.createElement('button');
-    cameraBtn.type = 'button';
-    cameraBtn.className = 'camera-button';
-    cameraBtn.textContent = '📷';
-    cameraBtn.setAttribute('aria-label', 'Take a photo');
+    if (currentTab === 'food') {
+      const cameraBtn = document.createElement('button');
+      cameraBtn.type = 'button';
+      cameraBtn.className = 'camera-button';
+      cameraBtn.textContent = '📷';
+      cameraBtn.setAttribute('aria-label', 'Take a photo');
 
-    const hiddenFileInput = document.createElement('input');
-    hiddenFileInput.type = 'file';
-    hiddenFileInput.accept = 'image/*';
-    hiddenFileInput.capture = 'environment';
-    hiddenFileInput.hidden = true;
-    hiddenFileInput.addEventListener('change', () => {
-      console.log('Photo captured but not yet processed');
-    });
+      const hiddenFileInput = document.createElement('input');
+      hiddenFileInput.type = 'file';
+      hiddenFileInput.accept = 'image/*';
+      hiddenFileInput.capture = 'environment';
+      hiddenFileInput.hidden = true;
+      hiddenFileInput.addEventListener('change', () => {
+        console.log('Photo captured but not yet processed');
+      });
 
-    cameraBtn.addEventListener('click', () => {
-      hiddenFileInput.click();
-    });
+      cameraBtn.addEventListener('click', () => {
+        hiddenFileInput.click();
+      });
 
-    caloriesWrap.appendChild(cameraBtn);
-    caloriesWrap.appendChild(hiddenFileInput);
+      caloriesWrap.appendChild(cameraBtn);
+      caloriesWrap.appendChild(hiddenFileInput);
+    }
 
     form.appendChild(wrap);
     form.appendChild(aiStatusLog);
@@ -818,14 +820,15 @@ function renderEntryForm() {
     form.appendChild(wrap);
   }
 
+  if (config.hasEffort) {
+    form.appendChild(buildEffortPills('low'));
+  }
+
   if (config.hasTimeCategory) {
     const defaultCategory = getTimeCategory(Date.now());
     const pills = buildCategoryPills(defaultCategory);
+    if (config.hasEffort) pills.style.marginTop = '12px';
     form.appendChild(pills);
-  }
-
-  if (config.hasEffort) {
-    form.appendChild(buildEffortPills('low'));
   }
 
   const saveBtn = document.createElement('button');
