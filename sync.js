@@ -394,10 +394,12 @@ async function pullEntriesFromSheet() {
     const rows = data.values || [];
     if (rows.length <= 1) return 0;
 
+    const sheetUuids = new Set();
     let added = 0, updated = 0;
     for (const row of rows.slice(1)) {
       const uuid = row[0];
       if (!uuid) continue;
+      sheetUuids.add(uuid);
       const type = row[3] || 'food';
       const rawValue = row[4] || '';
       const fields = {
@@ -426,9 +428,16 @@ async function pullEntriesFromSheet() {
         added++;
       }
     }
-    console.log(`[sync] Pulled ${added + updated} entries (${added} new, ${updated} updated)`);
+    // Propagate cross-device deletes: any local entry that was once in the sheet
+    // (synced: true) but whose uuid is no longer in the sheet snapshot was deleted
+    // on another device. Local-only entries (synced: false) are protected.
+    const removed = await db.entries
+      .filter((e) => e.synced === true && e.uuid && !sheetUuids.has(e.uuid))
+      .delete();
+
+    console.log(`[sync] Pulled ${added + updated} entries (${added} new, ${updated} updated, ${removed} removed)`);
     if (typeof refreshList === 'function') refreshList();
-    return added + updated;
+    return added + updated + removed;
   } catch (err) {
     console.warn('[sync] pullEntriesFromSheet failed:', err.message);
     setSyncStatus(`Pull failed: ${err.message.slice(0, 100)}`, 'error');
