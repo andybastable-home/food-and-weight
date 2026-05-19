@@ -1,16 +1,25 @@
 /* ------------------------------------------------------------------
    Design tokens — adjust these to retune the whole app.
 ------------------------------------------------------------------ */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./assets/fonts/fraunces-latin.woff2') format('woff2-variations');
+  font-variation-settings: "opsz" 144;
+}
+
 :root {
   /* Light theme (default) */
-  --color-bg: hsl(40 25% 97%);
+  --color-bg: hsl(210 30% 98%);
   --color-surface: hsl(0 0% 100%);
-  --color-surface-alt: hsl(40 20% 95%);
+  --color-surface-alt: hsl(210 25% 95%);
   --color-text: hsl(220 18% 14%);
   --color-text-muted: hsl(220 10% 45%);
-  --color-accent: hsl(160 32% 38%);
-  --color-accent-strong: hsl(160 38% 30%);
-  --color-accent-soft: hsl(160 35% 94%);
+  --color-accent: hsl(205 80% 50%);
+  --color-accent-strong: hsl(210 75% 42%);
+  --color-accent-soft: hsl(205 85% 95%);
   --color-border: hsl(220 14% 91%);
   --color-shadow: hsl(220 30% 20% / 0.06);
   --color-shadow-lg: hsl(220 30% 20% / 0.1);
@@ -44,19 +53,20 @@
 
   /* Type */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: hsl(220 18% 9%);
-    --color-surface: hsl(220 16% 13%);
-    --color-surface-alt: hsl(220 14% 17%);
-    --color-text: hsl(40 20% 96%);
-    --color-text-muted: hsl(220 8% 62%);
-    --color-accent: hsl(160 36% 56%);
-    --color-accent-strong: hsl(160 42% 66%);
-    --color-accent-soft: hsl(160 25% 17%);
+    --color-bg: hsl(215 25% 9%);
+    --color-surface: hsl(215 22% 13%);
+    --color-surface-alt: hsl(215 18% 17%);
+    --color-text: hsl(210 25% 96%);
+    --color-text-muted: hsl(215 10% 64%);
+    --color-accent: hsl(205 75% 62%);
+    --color-accent-strong: hsl(205 80% 72%);
+    --color-accent-soft: hsl(210 35% 18%);
     --color-border: hsl(220 12% 20%);
     --color-shadow: hsl(0 0% 0% / 0.3);
     --color-shadow-lg: hsl(0 0% 0% / 0.45);
@@ -152,9 +162,11 @@ body {
 }
 
 .brand-name {
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: 16px;
-  letter-spacing: -0.01em;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+  font-variation-settings: "opsz" 36;
 }
 
 .brand-version {
@@ -232,10 +244,12 @@ body {
 
 .date-nav-main {
   margin: 0;
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   line-height: 1.2;
+  font-variation-settings: "opsz" 60;
 }
 
 .date-nav-sub {
@@ -662,41 +676,108 @@ body {
 }
 
 .calories-total {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px var(--color-shadow), 0 8px 24px var(--color-shadow);
+}
+
+.cal-ring {
+  position: relative;
+  flex-shrink: 0;
+  width: 104px;
+  height: 104px;
+}
+
+.cal-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.cal-ring-track {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 8;
+}
+
+.cal-ring-fill {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 480ms cubic-bezier(0.22, 1, 0.36, 1),
+              stroke 240ms ease;
+}
+
+.calories-total.is-under .cal-ring-fill { stroke: var(--color-success); }
+.calories-total.is-over  .cal-ring-fill { stroke: var(--color-danger); }
+.calories-total.is-muted .cal-ring-fill { stroke: var(--color-text-muted); }
+
+.cal-ring-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-border);
-  margin-top: var(--space-2);
+  line-height: 1;
 }
 
 .cal-hero {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 2px;
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.cal-hero-num {
-  font-size: 30px;
-  font-weight: 700;
-}
-
-.cal-hero-label {
-  font-size: 14px;
+  font-size: 28px;
   font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--color-text);
+  font-variation-settings: "opsz" 72;
 }
 
 .calories-total.is-under .cal-hero { color: var(--color-success); }
 .calories-total.is-over  .cal-hero { color: var(--color-danger); }
-.calories-total.is-muted .cal-hero { color: var(--color-text); }
+
+.cal-hero-unit {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.cal-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cal-status {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--color-text);
+}
+
+.calories-total.is-under .cal-status { color: var(--color-success); }
+.calories-total.is-over  .cal-status { color: var(--color-danger); }
 
 .cal-detail {
-  margin-top: 4px;
   font-size: 13px;
   font-weight: 500;
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
+  line-height: 1.45;
 }
 
 /* ------------------------------------------------------------------
@@ -891,9 +972,12 @@ body {
 }
 
 .settings-title {
-  font-size: 17px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--color-text);
+  font-variation-settings: "opsz" 36;
 }
 
 .settings-close {

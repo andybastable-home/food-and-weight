@@ -953,25 +953,69 @@ async function refreshList() {
   }
 }
 
+function buildCalRing(progress) {
+  // progress: 0..1 of ring filled. Returns the .cal-ring wrapper.
+  const RADIUS = 44;
+  const CIRC = 2 * Math.PI * RADIUS;
+  const clamped = Math.max(0, Math.min(1, progress));
+  const offset = CIRC * (1 - clamped);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'cal-ring';
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 104 104');
+  svg.setAttribute('aria-hidden', 'true');
+
+  const track = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  track.setAttribute('class', 'cal-ring-track');
+  track.setAttribute('cx', '52');
+  track.setAttribute('cy', '52');
+  track.setAttribute('r', String(RADIUS));
+
+  const fill = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  fill.setAttribute('class', 'cal-ring-fill');
+  fill.setAttribute('cx', '52');
+  fill.setAttribute('cy', '52');
+  fill.setAttribute('r', String(RADIUS));
+  fill.setAttribute('stroke-dasharray', String(CIRC));
+  fill.setAttribute('stroke-dashoffset', String(offset));
+
+  svg.append(track, fill);
+
+  const inner = document.createElement('div');
+  inner.className = 'cal-ring-inner';
+
+  wrap.append(svg, inner);
+  return { wrap, inner };
+}
+
 function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
   els.calTotal.replaceChildren();
   els.calTotal.classList.remove('is-under', 'is-over', 'is-muted');
 
   if (!target) {
     els.calTotal.classList.add('is-muted');
-    const eaten = document.createElement('div');
-    eaten.className = 'cal-hero';
-    const num = document.createElement('span');
-    num.className = 'cal-hero-num';
-    num.textContent = foodTotal.toLocaleString();
-    const label = document.createElement('span');
-    label.className = 'cal-hero-label';
-    label.textContent = ' kcal eaten';
-    eaten.append(num, label);
+    const { wrap, inner } = buildCalRing(0);
+    const hero = document.createElement('div');
+    hero.className = 'cal-hero';
+    hero.textContent = foodTotal.toLocaleString();
+    const unit = document.createElement('div');
+    unit.className = 'cal-hero-unit';
+    unit.textContent = 'kcal';
+    inner.append(hero, unit);
+
+    const text = document.createElement('div');
+    text.className = 'cal-text';
+    const status = document.createElement('div');
+    status.className = 'cal-status';
+    status.textContent = 'eaten today';
     const hint = document.createElement('div');
     hint.className = 'cal-detail';
-    hint.textContent = 'set weight & profile for target';
-    els.calTotal.append(eaten, hint);
+    hint.textContent = 'Set weight & profile for a target';
+    text.append(status, hint);
+
+    els.calTotal.append(wrap, text);
     return;
   }
 
@@ -980,22 +1024,29 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
   const isUnder = remaining >= 0;
   els.calTotal.classList.add(isUnder ? 'is-under' : 'is-over');
 
+  const progress = finalTarget > 0 ? foodTotal / finalTarget : 0;
+  const { wrap, inner } = buildCalRing(progress);
+
   const hero = document.createElement('div');
   hero.className = 'cal-hero';
-  const num = document.createElement('span');
-  num.className = 'cal-hero-num';
-  num.textContent = Math.abs(remaining).toLocaleString();
-  const label = document.createElement('span');
-  label.className = 'cal-hero-label';
-  label.textContent = isUnder ? ' kcal left' : ' kcal over';
-  hero.append(num, label);
+  hero.textContent = Math.abs(remaining).toLocaleString();
+  const unit = document.createElement('div');
+  unit.className = 'cal-hero-unit';
+  unit.textContent = isUnder ? 'left' : 'over';
+  inner.append(hero, unit);
 
+  const text = document.createElement('div');
+  text.className = 'cal-text';
+  const status = document.createElement('div');
+  status.className = 'cal-status';
+  status.textContent = isUnder ? 'under target' : 'over target';
   const detail = document.createElement('div');
   detail.className = 'cal-detail';
   const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} workout)` : '';
   detail.textContent = `eaten ${foodTotal.toLocaleString()} · target ${target.toLocaleString()}${workoutPart}`;
+  text.append(status, detail);
 
-  els.calTotal.append(hero, detail);
+  els.calTotal.append(wrap, text);
 }
 
 async function refreshAll() {
