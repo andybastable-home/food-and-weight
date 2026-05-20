@@ -695,22 +695,24 @@ function renderTabs() {
 function attachLongPress(el, handler) {
   if (longPressAttached) return;
   longPressAttached = true;
-  el.style.userSelect = 'none';
-  el.style.webkitUserSelect = 'none';
   let timer = null;
   let startX = 0;
   let startY = 0;
-  el.addEventListener('pointerdown', (e) => {
-    startX = e.clientX;
-    startY = e.clientY;
+  // {passive:false} + preventDefault stops Chrome's long-press text-selection gesture
+  el.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
     timer = setTimeout(() => { timer = null; handler(); }, 600);
-  });
+  }, { passive: false });
   const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
-  el.addEventListener('pointerup', cancel);
-  el.addEventListener('pointercancel', cancel);
+  el.addEventListener('touchend', cancel);
+  el.addEventListener('touchcancel', cancel);
   el.addEventListener('contextmenu', (e) => { e.preventDefault(); cancel(); });
-  el.addEventListener('pointermove', (e) => {
-    if (timer && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) cancel();
+  el.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    if (timer && (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10)) cancel();
   });
 }
 
