@@ -714,7 +714,8 @@ function attachLongPress(el, handler) {
 
 function openSkipPrompt() {
   if (currentTab !== 'food') return;
-  if (!isSameDay(currentDate, new Date())) return;
+  // TODO: restore today-only guard after testing
+  // if (!isSameDay(currentDate, new Date())) return;
   if (skipMarker) return;
   loadEntries(currentDate, 'food').then((entries) => {
     if (entries.length > 0) return;
@@ -860,15 +861,16 @@ function renderEntryForm() {
       ? `Day off — ${skipMarker.text}`
       : 'Food logging skipped for today.';
     banner.appendChild(msg);
-    if (isSameDay(currentDate, new Date())) {
-      const undoBtn = document.createElement('button');
-      undoBtn.type = 'button';
-      undoBtn.className = 'btn btn-ghost';
-      undoBtn.style.marginTop = '12px';
-      undoBtn.textContent = 'Undo';
-      undoBtn.addEventListener('click', removeSkipMarker);
-      banner.appendChild(undoBtn);
-    }
+    // TODO: restore today-only guard after testing
+    // if (isSameDay(currentDate, new Date())) {
+    const undoBtn = document.createElement('button');
+    undoBtn.type = 'button';
+    undoBtn.className = 'btn btn-ghost';
+    undoBtn.style.marginTop = '12px';
+    undoBtn.textContent = 'Undo';
+    undoBtn.addEventListener('click', removeSkipMarker);
+    banner.appendChild(undoBtn);
+    // }
     els.formContainer.replaceChildren(banner);
     return;
   }
