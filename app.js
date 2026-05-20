@@ -695,6 +695,8 @@ function renderTabs() {
 function attachLongPress(el, handler) {
   if (longPressAttached) return;
   longPressAttached = true;
+  el.style.userSelect = 'none';
+  el.style.webkitUserSelect = 'none';
   let timer = null;
   let startX = 0;
   let startY = 0;
@@ -706,7 +708,7 @@ function attachLongPress(el, handler) {
   const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
   el.addEventListener('pointerup', cancel);
   el.addEventListener('pointercancel', cancel);
-  el.addEventListener('contextmenu', cancel);
+  el.addEventListener('contextmenu', (e) => { e.preventDefault(); cancel(); });
   el.addEventListener('pointermove', (e) => {
     if (timer && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) cancel();
   });
