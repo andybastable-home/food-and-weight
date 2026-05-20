@@ -104,6 +104,12 @@ const TYPES = {
     isCollapsible: true,
     formatDisplay: (e) => e.text,
   },
+  skip_food: {
+    label: 'Skip Day',
+    inputKind: 'text',
+    isCollapsible: false,
+    formatDisplay: (e) => e.text,
+  },
 };
 
 // ------------------------------------------------------------------
@@ -218,17 +224,24 @@ let currentTab = 'food';
 let confirmingDeleteId = null;
 let retroConfirmState = null; // { id, aiResult } when retro-estimate review is open
 let isFormOpen = false;
+let skipMarker = null;
+let longPressAttached = false;
 
 const els = {
   dateLabel: document.getElementById('date-label'),
   dateSub: document.getElementById('date-sub'),
   prevBtn: document.getElementById('prev-day'),
   nextBtn: document.getElementById('next-day'),
+  dateNavLabel: document.querySelector('.date-nav-label'),
   tabs: Array.from(document.querySelectorAll('.tab')),
   formContainer: document.getElementById('entry-form-container'),
   list: document.getElementById('entries-list'),
   empty: document.getElementById('empty-state'),
   calTotal: document.getElementById('calories-total'),
+  skipOverlay: document.getElementById('skip-overlay'),
+  skipReasonInput: document.getElementById('skip-reason-input'),
+  skipCancelBtn: document.getElementById('skip-cancel'),
+  skipConfirmBtn: document.getElementById('skip-confirm'),
 };
 
 // ------------------------------------------------------------------
@@ -255,6 +268,16 @@ async function loadEntries(date, type) {
     .and((e) => e.type === type)
     .reverse()
     .sortBy('timestamp');
+}
+
+async function loadSkipMarker(date) {
+  const start = startOfDay(date).getTime();
+  const end = endOfDay(date).getTime();
+  const rows = await db.entries
+    .where('timestamp').between(start, end, true, true)
+    .and((e) => e.type === 'skip_food')
+    .toArray();
+  return rows[0] || null;
 }
 
 // ------------------------------------------------------------------
@@ -343,6 +366,38 @@ async function confirmAndDelete(id) {
   await refreshList();
 }
 
+async function createSkipMarker(reason) {
+  const entry = {
+    type: 'skip_food',
+    uuid: crypto.randomUUID(),
+    text: reason || '',
+    rawInput: reason || '',
+    timestamp: combineDayAndTime(currentDate, '12:00'),
+    synced: 0,
+  };
+  const id = await db.entries.add(entry);
+  skipMarker = { ...entry, id };
+  if (typeof syncEntriesToSheet === 'function') {
+    syncEntriesToSheet([skipMarker])
+      .then(() => db.entries.update(id, { synced: true }))
+      .catch(() => {});
+  }
+  renderEntryForm();
+  await refreshList();
+}
+
+async function removeSkipMarker() {
+  if (!skipMarker) return;
+  const { id, uuid } = skipMarker;
+  await db.entries.delete(id);
+  skipMarker = null;
+  if (uuid && typeof deleteEntryFromSheet === 'function') {
+    deleteEntryFromSheet(uuid).catch(() => {});
+  }
+  renderEntryForm();
+  await refreshList();
+}
+
 function startDeleteConfirm(id) {
   confirmingDeleteId = id;
   retroConfirmState = null;
@@ -359,6 +414,7 @@ function setDate(date) {
   confirmingDeleteId = null;
   retroConfirmState = null;
   isFormOpen = false;
+  skipMarker = null;
   refreshAll();
 }
 
@@ -368,6 +424,7 @@ function setTab(tab) {
   confirmingDeleteId = null;
   retroConfirmState = null;
   isFormOpen = false;
+  skipMarker = null;
   refreshAll();
 }
 
@@ -635,6 +692,38 @@ function renderTabs() {
   }
 }
 
+function attachLongPress(el, handler) {
+  if (longPressAttached) return;
+  longPressAttached = true;
+  let timer = null;
+  let startX = 0;
+  let startY = 0;
+  el.addEventListener('pointerdown', (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    timer = setTimeout(() => { timer = null; handler(); }, 600);
+  });
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  el.addEventListener('pointerup', cancel);
+  el.addEventListener('pointercancel', cancel);
+  el.addEventListener('contextmenu', cancel);
+  el.addEventListener('pointermove', (e) => {
+    if (timer && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) cancel();
+  });
+}
+
+function openSkipPrompt() {
+  if (currentTab !== 'food') return;
+  if (!isSameDay(currentDate, new Date())) return;
+  if (skipMarker) return;
+  loadEntries(currentDate, 'food').then((entries) => {
+    if (entries.length > 0) return;
+    els.skipReasonInput.value = '';
+    els.skipOverlay.classList.remove('hidden');
+    els.skipReasonInput.focus();
+  });
+}
+
 function renderDateNav() {
   const { main, sub } = formatDateLabel(currentDate);
   els.dateLabel.textContent = main;
@@ -644,6 +733,8 @@ function renderDateNav() {
   const onToday = isSameDay(currentDate, new Date());
   els.nextBtn.disabled = onToday;
   els.nextBtn.setAttribute('aria-disabled', onToday ? 'true' : 'false');
+
+  attachLongPress(els.dateNavLabel, openSkipPrompt);
 }
 
 function buildPrimaryInput(config, initialValue) {
@@ -760,6 +851,27 @@ function buildEffortPills(selectedValue) {
 
 function renderEntryForm() {
   const config = TYPES[currentTab];
+
+  if (currentTab === 'food' && skipMarker) {
+    const banner = document.createElement('div');
+    banner.className = 'empty-state';
+    const msg = document.createElement('p');
+    msg.textContent = skipMarker.text
+      ? `Day off — ${skipMarker.text}`
+      : 'Food logging skipped for today.';
+    banner.appendChild(msg);
+    if (isSameDay(currentDate, new Date())) {
+      const undoBtn = document.createElement('button');
+      undoBtn.type = 'button';
+      undoBtn.className = 'btn btn-ghost';
+      undoBtn.style.marginTop = '12px';
+      undoBtn.textContent = 'Undo';
+      undoBtn.addEventListener('click', removeSkipMarker);
+      banner.appendChild(undoBtn);
+    }
+    els.formContainer.replaceChildren(banner);
+    return;
+  }
 
   if (config.isCollapsible && !isFormOpen) {
     const toggleBtn = document.createElement('button');
@@ -1204,6 +1316,11 @@ async function refreshList() {
   const entries = await loadEntries(currentDate, currentTab);
   renderEntries(entries);
 
+  if (currentTab === 'food' && skipMarker) {
+    els.calTotal.hidden = true;
+    return;
+  }
+
   if (currentTab === 'food' || currentTab === 'workout') {
     const foodDay = currentTab === 'food' ? entries : await loadEntries(currentDate, 'food');
     const workoutDay = currentTab === 'workout' ? entries : await loadEntries(currentDate, 'workout');
@@ -1317,6 +1434,11 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
 async function refreshAll() {
   renderTabs();
   renderDateNav();
+  if (currentTab === 'food') {
+    skipMarker = await loadSkipMarker(currentDate);
+  } else {
+    skipMarker = null;
+  }
   renderEntryForm();
   await refreshList();
 }
@@ -1324,6 +1446,20 @@ async function refreshAll() {
 // ------------------------------------------------------------------
 // Init
 // ------------------------------------------------------------------
+function initSkipOverlay() {
+  function closeSkip() {
+    els.skipOverlay.classList.add('hidden');
+    els.skipReasonInput.value = '';
+  }
+  els.skipCancelBtn.addEventListener('click', closeSkip);
+  els.skipOverlay.addEventListener('click', (e) => { if (e.target === els.skipOverlay) closeSkip(); });
+  els.skipConfirmBtn.addEventListener('click', () => {
+    const reason = els.skipReasonInput.value.trim();
+    closeSkip();
+    createSkipMarker(reason);
+  });
+}
+
 function init() {
   for (const btn of els.tabs) {
     btn.addEventListener('click', () => setTab(btn.dataset.tab));
@@ -1334,6 +1470,7 @@ function init() {
     setDate(addDays(currentDate, 1));
   });
   initSettingsPanel();
+  initSkipOverlay();
   rebuildFrequentFoods();
   refreshAll();
 }

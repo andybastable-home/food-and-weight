@@ -23,7 +23,7 @@ const ENTRIES_RANGE_ALL = 'Entries!A:O';
 const ENTRIES_RANGE_HEADER = 'Entries!A1:O1';
 const ENTRIES_ROW_RANGE = (rowNum) => `Entries!A${rowNum}:O${rowNum}`;
 
-const ENTRY_CONVENTION_NOTE = 'time_category is canonical for meal/activity ordering; epoch/iso_date is moment-of-entry and may not match the real meal/activity time. Weight entries are AM-fasted by convention (time_category=Morning, timestamp=noon-of-day).';
+const ENTRY_CONVENTION_NOTE = 'time_category is canonical for meal/activity ordering; epoch/iso_date is moment-of-entry and may not match the real meal/activity time. Weight entries are AM-fasted by convention (time_category=Morning, timestamp=noon-of-day). A type=skip_food entry marks an intentional day-off from food logging; the reason is in column E (value) — treat the date as deliberately untracked, not missing.';
 
 let tokenClient = null;
 let accessToken = null;

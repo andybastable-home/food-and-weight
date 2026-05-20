@@ -18,7 +18,7 @@
     <div class="brand">
       <img src="./icons/icon.svg" alt="" class="brand-mark" width="32" height="32">
       <span class="brand-name">Food &amp; Weight</span>
-      <span class="brand-version" aria-label="App version">v0.10.0</span>
+      <span class="brand-version" aria-label="App version">v0.11.0</span>
     </div>
     <button id="settings-btn" class="settings-btn" type="button" aria-label="Settings">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -86,6 +86,26 @@ e.g. * My standard lunch salad is 320 calories
     </div>
   </div>
 
+  <!-- Skip-day overlay -->
+  <div id="skip-overlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-label="Skip food logging">
+    <div class="settings-panel">
+      <div class="settings-header">
+        <span class="settings-title">Skip food logging today?</span>
+      </div>
+      <div class="settings-body">
+        <p class="ai-config-hint">Add a brief note so your records show an intentional gap, not missing data.</p>
+        <div class="ai-config-section">
+          <label class="ai-config-label" for="skip-reason-input">Reason</label>
+          <input type="text" id="skip-reason-input" class="ai-config-input" maxlength="120" placeholder="e.g. birthday meal" autocomplete="off">
+        </div>
+        <div class="settings-sync">
+          <button id="skip-confirm" type="button" class="btn btn-primary">Skip the day</button>
+          <button id="skip-cancel" type="button" class="btn btn-ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <main class="container">
     <section class="date-nav" aria-label="Date navigation">
       <button id="prev-day" class="date-nav-btn" type="button" aria-label="Previous day">
@@ -119,7 +139,7 @@ e.g. * My standard lunch salad is 320 calories
   </main>
 
   <footer class="app-footer">
-    <span>v0.10.0 &middot; offline-ready</span>
+    <span>v0.11.0 &middot; offline-ready</span>
   </footer>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
