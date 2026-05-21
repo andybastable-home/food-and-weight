@@ -859,11 +859,13 @@ function buildEffortPills(selectedValue) {
   return container;
 }
 
-function renderMeasurementsForms() {
+function renderMeasurementsForms({ hideWeight = false, hideWaist = false } = {}) {
   const container = document.createElement('div');
   container.className = 'measurements-forms';
 
+  const hideMap = { weight: hideWeight, waist: hideWaist };
   for (const type of ['weight', 'waist']) {
+    if (hideMap[type]) continue;
     const config = TYPES[type];
 
     const form = document.createElement('form');
@@ -892,8 +894,7 @@ function renderMeasurementsForms() {
 
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      const ok = await handleAdd(type, { value: input.value });
-      if (ok) input.value = '';
+      await handleAdd(type, { value: input.value });
     });
 
     container.appendChild(form);
@@ -904,7 +905,9 @@ function renderMeasurementsForms() {
 
 function renderEntryForm() {
   if (currentTab === 'measurements') {
-    renderMeasurementsForms();
+    // Forms are populated by refreshList (which knows what's already logged today).
+    // Clear here so a previous tab's form doesn't linger during the async fetch.
+    els.formContainer.replaceChildren();
     return;
   }
 
@@ -1379,6 +1382,10 @@ async function refreshList() {
       loadEntries(currentDate, 'waist'),
     ]);
     entries = [...weights, ...waists].sort((a, b) => a.timestamp - b.timestamp);
+    renderMeasurementsForms({
+      hideWeight: weights.length > 0,
+      hideWaist: waists.length > 0,
+    });
   } else {
     entries = await loadEntries(currentDate, currentTab);
   }

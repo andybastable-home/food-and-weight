@@ -34,4 +34,4 @@ Stable UUIDs as sync identity, attach-existing-sheet UX, schema versioning (Meta
 
 ## Known follow-ups
 - No "last synced" indicator.
-- Service worker cache: `fw-shell-v0.12.0`.
+- Service worker cache: `fw-shell-v0.12.1`.
