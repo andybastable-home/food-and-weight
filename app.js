@@ -622,6 +622,13 @@ async function updateCalTargetPreview() {
   }
 }
 
+function targetFromWeight(weightAvg, sex, age, height) {
+  const bmr = sex === 'male'
+    ? 10 * weightAvg + 6.25 * height - 5 * age + 5
+    : 10 * weightAvg + 6.25 * height - 5 * age - 161;
+  return Math.round(bmr * ACTIVITY_MULTIPLIER);
+}
+
 // Returns { targetKcal, weightAvg, source } or null.
 // source: 'avg' (≥1 weight in window) | 'single-stale' (fallback) | null (no data).
 async function computeMaintenanceTarget(date = new Date()) {
@@ -673,10 +680,7 @@ async function computeMaintenanceTarget(date = new Date()) {
     console.log('[app] computeMaintenanceTarget: stale fallback weight', fallback.value, 'from', new Date(fallback.timestamp).toISOString());
   }
 
-  const bmr = sex === 'male'
-    ? 10 * weightAvg + 6.25 * height - 5 * age + 5
-    : 10 * weightAvg + 6.25 * height - 5 * age - 161;
-  return { targetKcal: Math.round(bmr * ACTIVITY_MULTIPLIER), weightAvg, source };
+  return { targetKcal: targetFromWeight(weightAvg, sex, age, height), weightAvg, source };
 }
 
 function initSettingsPanel() {
@@ -1576,6 +1580,312 @@ async function refreshAll() {
 }
 
 // ------------------------------------------------------------------
+// Progress charts
+// ------------------------------------------------------------------
+
+async function loadProgressRange(startDate, endDate) {
+  const sex = localStorage.getItem('fw_cal_sex') || '';
+  const age = parseFloat(localStorage.getItem('fw_cal_age') || '');
+  const height = parseFloat(localStorage.getItem('fw_cal_height') || '');
+  const hasProfile = !!(sex && age && height);
+
+  // Single query extending back far enough for rolling-avg look-back.
+  const lookbackStart = startOfDay(addDays(startDate, -(WEIGHT_AVG_WINDOW_DAYS + WEIGHT_STALENESS_LIMIT_DAYS)));
+  const allEntries = await db.entries
+    .where('timestamp').between(lookbackStart.getTime(), endOfDay(endDate).getTime(), true, true)
+    .toArray();
+
+  const weightEntries = allEntries.filter(e => e.type === 'weight').sort((a, b) => a.timestamp - b.timestamp);
+  const foodEntries = allEntries.filter(e => e.type === 'food');
+  const workoutEntries = allEntries.filter(e => e.type === 'workout');
+
+  const days = [];
+  let d = startOfDay(new Date(startDate));
+  const endTs = startOfDay(endDate).getTime();
+  while (d.getTime() <= endTs) {
+    const dayStart = startOfDay(d).getTime();
+    const dayEnd = endOfDay(d).getTime();
+
+    const foodKcal = foodEntries
+      .filter(e => e.timestamp >= dayStart && e.timestamp <= dayEnd)
+      .reduce((sum, e) => sum + (e.calories || 0), 0);
+
+    const workoutKcal = workoutEntries
+      .filter(e => e.timestamp >= dayStart && e.timestamp <= dayEnd)
+      .reduce((sum, e) => sum + (e.calories || 0), 0);
+
+    const dayWeights = weightEntries.filter(e => e.timestamp >= dayStart && e.timestamp <= dayEnd);
+    const weight = dayWeights.length > 0 ? dayWeights[dayWeights.length - 1].value : null;
+
+    let weightAvg7 = null;
+    let targetKcal = null;
+    if (hasProfile) {
+      const reps = [];
+      for (let offset = WEIGHT_AVG_WINDOW_DAYS; offset >= 1; offset--) {
+        const refDay = addDays(d, -offset);
+        const refDayEnd = endOfDay(refDay).getTime();
+        const staleLimit = startOfDay(addDays(refDay, -WEIGHT_STALENESS_LIMIT_DAYS)).getTime();
+        for (let i = weightEntries.length - 1; i >= 0; i--) {
+          const ts = weightEntries[i].timestamp;
+          if (ts <= refDayEnd && ts >= staleLimit) {
+            reps.push(weightEntries[i].value);
+            break;
+          }
+        }
+      }
+      if (reps.length > 0) {
+        weightAvg7 = reps.reduce((s, v) => s + v, 0) / reps.length;
+        targetKcal = targetFromWeight(weightAvg7, sex, age, height);
+      }
+    }
+
+    days.push({ date: d.toISOString().slice(0, 10), foodKcal, workoutKcal, weight, weightAvg7, targetKcal });
+    d = addDays(d, 1);
+  }
+  return { days };
+}
+
+function svgEl(tag, attrs = {}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+const CHART_W = 360, CHART_H = 190;
+const CP = { l: 40, r: 10, t: 14, b: 28 };
+const PW = CHART_W - CP.l - CP.r;
+const PH = CHART_H - CP.t - CP.b;
+
+function chartXPos(i, total) {
+  return total <= 1 ? CP.l + PW / 2 : CP.l + (i / (total - 1)) * PW;
+}
+
+function chartYPos(val, min, max) {
+  return CP.t + PH - ((val - min) / (max - min)) * PH;
+}
+
+function barXPos(i, total) {
+  return CP.l + i * (PW / total);
+}
+
+function barWidth(total) {
+  return Math.max(1, PW / total - 1);
+}
+
+function niceGridStep(range, maxSteps) {
+  const rawStep = (range || 1) / maxSteps;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  for (const f of [1, 2, 5, 10]) {
+    if (f * magnitude >= rawStep) return f * magnitude;
+  }
+  return magnitude * 10;
+}
+
+function addChartGrid(svg, min, max) {
+  const step = niceGridStep(max - min, 4);
+  const gridMin = Math.ceil(min / step) * step;
+  for (let v = gridMin; v <= max + step * 0.01; v += step) {
+    const y = chartYPos(v, min, max);
+    if (y < CP.t - 2 || y > CP.t + PH + 2) continue;
+    svg.appendChild(svgEl('line', { x1: CP.l, y1: y.toFixed(1), x2: CHART_W - CP.r, y2: y.toFixed(1), class: 'chart-grid-line' }));
+    const lbl = svgEl('text', { x: CP.l - 4, y: (y + 4).toFixed(1), class: 'chart-axis-label', 'text-anchor': 'end' });
+    const absV = Math.abs(v);
+    lbl.textContent = absV >= 100 ? Math.round(v).toLocaleString() : (v % 1 === 0 ? String(v) : v.toFixed(1));
+    svg.appendChild(lbl);
+  }
+}
+
+function addChartXLabels(svg, days, labelEvery, getX) {
+  const n = days.length;
+  const xFn = getX || ((i) => chartXPos(i, n));
+  days.forEach((day, i) => {
+    if (i % labelEvery !== 0 && i !== n - 1) return;
+    const x = xFn(i);
+    const d = new Date(day.date + 'T00:00:00');
+    const lbl = svgEl('text', { x: x.toFixed(1), y: CHART_H - 4, class: 'chart-axis-label', 'text-anchor': 'middle' });
+    lbl.textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    svg.appendChild(lbl);
+  });
+}
+
+function xLabelEvery(n) {
+  if (n <= 8) return 1;
+  if (n <= 35) return 7;
+  if (n <= 100) return 14;
+  return 30;
+}
+
+function makeChartWrap(title) {
+  const fig = document.createElement('figure');
+  fig.className = 'chart';
+  const svg = svgEl('svg', { viewBox: `0 0 ${CHART_W} ${CHART_H}`, 'aria-hidden': 'true' });
+  const cap = document.createElement('figcaption');
+  cap.className = 'chart-label';
+  cap.textContent = title;
+  fig.append(svg, cap);
+  return { fig, svg };
+}
+
+function buildWeightChart(days) {
+  const { fig, svg } = makeChartWrap('Weight (kg)');
+  const pts = days.map((d, i) => ({ i, w: d.weight, a: d.weightAvg7 }));
+  const vals = pts.flatMap(p => [p.w, p.a].filter(v => v != null));
+  if (!vals.length) {
+    const t = svgEl('text', { x: CHART_W / 2, y: CHART_H / 2, class: 'chart-empty', 'text-anchor': 'middle' });
+    t.textContent = 'No weight data in range';
+    svg.appendChild(t);
+    return fig;
+  }
+  const min = Math.min(...vals) - 0.5;
+  const max = Math.max(...vals) + 0.5;
+  addChartGrid(svg, min, max);
+  addChartXLabels(svg, days, xLabelEvery(days.length));
+
+  const avgPts = pts.filter(p => p.a != null);
+  if (avgPts.length >= 2) {
+    const polyPts = avgPts.map(p => `${chartXPos(p.i, days.length).toFixed(1)},${chartYPos(p.a, min, max).toFixed(1)}`).join(' ');
+    svg.appendChild(svgEl('polyline', { points: polyPts, class: 'chart-line chart-line-avg' }));
+  }
+
+  const wPts = pts.filter(p => p.w != null);
+  if (wPts.length >= 2) {
+    const polyPts = wPts.map(p => `${chartXPos(p.i, days.length).toFixed(1)},${chartYPos(p.w, min, max).toFixed(1)}`).join(' ');
+    svg.appendChild(svgEl('polyline', { points: polyPts, class: 'chart-line chart-line-weight' }));
+  }
+  for (const p of wPts) {
+    svg.appendChild(svgEl('circle', {
+      cx: chartXPos(p.i, days.length).toFixed(1),
+      cy: chartYPos(p.w, min, max).toFixed(1),
+      r: '3', class: 'chart-dot',
+    }));
+  }
+  return fig;
+}
+
+function buildCaloriesChart(days) {
+  const { fig, svg } = makeChartWrap('Calories vs Target (kcal)');
+  const n = days.length;
+  const bw = barWidth(n);
+  const getBarX = (i) => barXPos(i, n) + bw / 2;
+  const maxFood = Math.max(...days.map(d => d.foodKcal), 0);
+  const maxTarget = Math.max(...days.map(d => (d.targetKcal ?? 0) + d.workoutKcal), 0);
+  const yMax = Math.max(maxFood, maxTarget, 100) * 1.1;
+  const yMin = 0;
+  addChartGrid(svg, yMin, yMax);
+  addChartXLabels(svg, days, xLabelEvery(n), getBarX);
+
+  for (let i = 0; i < n; i++) {
+    const d = days[i];
+    if (!d.foodKcal) continue;
+    const effectiveTarget = (d.targetKcal ?? 0) + d.workoutKcal;
+    const isOver = effectiveTarget > 0 && d.foodKcal > effectiveTarget;
+    const bh = Math.max(1, PH * (d.foodKcal / yMax));
+    const by = CP.t + PH - bh;
+    svg.appendChild(svgEl('rect', {
+      x: barXPos(i, n).toFixed(1), y: by.toFixed(1),
+      width: bw.toFixed(1), height: bh.toFixed(1),
+      rx: '2', class: `chart-bar ${isOver ? 'is-over' : 'is-under'}`,
+    }));
+  }
+
+  const tPts = days
+    .map((d, i) => d.targetKcal != null ? { i, v: d.targetKcal + d.workoutKcal } : null)
+    .filter(Boolean);
+  if (tPts.length >= 2) {
+    const polyPts = tPts.map(p => `${getBarX(p.i).toFixed(1)},${chartYPos(p.v, yMin, yMax).toFixed(1)}`).join(' ');
+    svg.appendChild(svgEl('polyline', { points: polyPts, class: 'chart-target-line' }));
+  }
+  return fig;
+}
+
+function buildNetBalanceChart(days) {
+  const { fig, svg } = makeChartWrap('Net Balance (kcal · deficit is good)');
+  const n = days.length;
+  const bw = barWidth(n);
+  const nets = days.map(d => d.targetKcal != null ? d.foodKcal - d.workoutKcal - d.targetKcal : null);
+  const vals = nets.filter(v => v != null);
+  if (!vals.length) {
+    const t = svgEl('text', { x: CHART_W / 2, y: CHART_H / 2, class: 'chart-empty', 'text-anchor': 'middle' });
+    t.textContent = 'Set your profile to see net balance';
+    svg.appendChild(t);
+    return fig;
+  }
+
+  const maxAbs = Math.max(Math.abs(Math.min(...vals)), Math.abs(Math.max(...vals)), 100);
+  const yMin = -maxAbs * 1.15;
+  const yMax = maxAbs * 1.15;
+  const zeroY = chartYPos(0, yMin, yMax);
+  addChartGrid(svg, yMin, yMax);
+  svg.appendChild(svgEl('line', { x1: CP.l, y1: zeroY.toFixed(1), x2: CHART_W - CP.r, y2: zeroY.toFixed(1), class: 'chart-zero-line' }));
+  addChartXLabels(svg, days, xLabelEvery(n), (i) => barXPos(i, n) + bw / 2);
+
+  for (let i = 0; i < n; i++) {
+    const net = nets[i];
+    if (net == null || net === 0) continue;
+    const isOver = net > 0;
+    const yNet = chartYPos(net, yMin, yMax);
+    const by = isOver ? yNet : zeroY;
+    const bh = Math.max(1, Math.abs(zeroY - yNet));
+    svg.appendChild(svgEl('rect', {
+      x: barXPos(i, n).toFixed(1), y: by.toFixed(1),
+      width: bw.toFixed(1), height: bh.toFixed(1),
+      rx: '2', class: `chart-bar ${isOver ? 'is-over' : 'is-under'}`,
+    }));
+  }
+  return fig;
+}
+
+let currentProgressRange = 30;
+
+async function renderProgress() {
+  const chartsEl = document.getElementById('progress-charts');
+  chartsEl.textContent = '';
+  const loading = document.createElement('p');
+  loading.className = 'progress-loading';
+  loading.textContent = 'Loading…';
+  chartsEl.appendChild(loading);
+
+  const endDate = new Date();
+  let startDate;
+  if (currentProgressRange === 0) {
+    const first = await db.entries.orderBy('timestamp').first();
+    startDate = first ? startOfDay(new Date(first.timestamp)) : startOfDay(addDays(endDate, -29));
+  } else {
+    startDate = startOfDay(addDays(endDate, -(currentProgressRange - 1)));
+  }
+
+  const { days } = await loadProgressRange(startDate, endDate);
+  chartsEl.textContent = '';
+  chartsEl.appendChild(buildWeightChart(days));
+  chartsEl.appendChild(buildCaloriesChart(days));
+  chartsEl.appendChild(buildNetBalanceChart(days));
+}
+
+function initProgressPanel() {
+  const btn = document.getElementById('progress-btn');
+  const overlay = document.getElementById('progress-overlay');
+  const closeBtn = document.getElementById('progress-close');
+  const chipRow = document.getElementById('progress-range-chips');
+  if (!btn || !overlay) return;
+
+  btn.addEventListener('click', () => {
+    overlay.classList.remove('hidden');
+    renderProgress();
+  });
+  closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.add('hidden'); });
+
+  for (const chip of chipRow.querySelectorAll('.range-chip')) {
+    chip.addEventListener('click', () => {
+      for (const c of chipRow.querySelectorAll('.range-chip')) c.classList.remove('is-active');
+      chip.classList.add('is-active');
+      currentProgressRange = parseInt(chip.dataset.range, 10);
+      renderProgress();
+    });
+  }
+}
+
+// ------------------------------------------------------------------
 // Init
 // ------------------------------------------------------------------
 function initSkipOverlay() {
@@ -1602,6 +1912,7 @@ function init() {
     setDate(addDays(currentDate, 1));
   });
   initSettingsPanel();
+  initProgressPanel();
   initSkipOverlay();
   rebuildFrequentFoods();
   refreshAll();

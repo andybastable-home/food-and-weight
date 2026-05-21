@@ -1,21 +1,22 @@
 # Status
 
 ## Current phase
-**Phase 8.5 🚧 — Rolling-avg calorie target + DailyTargets sheet tab** (v0.13.2; coded, pending verification on phone).
+**Phase 8.6 🚧 — Progress charts view** (v0.14.0; coded, pending verification on phone).
 
-7-day trailing weight average (days strictly before the target date) replaces the single most-recent weight. Activity multiplier bumped 1.2 → 1.3 (NEAT-adjusted sedentary). New `DailyTargets` tab in the Google Sheet: `date | target_kcal | weight_avg_kg | window_days`. Schema bumped to v4 with backfill migration.
+Chart icon (⤻) in header opens full-screen Progress overlay. Three SVG charts: Weight trend (raw + 7-day avg line), Calories vs Target (bars + dashed target line), Net Balance (bars from zero baseline). Range chips: 7d / 30d / 90d / All (default 30d). Single Dexie query per render; all computation in-memory.
 
-## Verification checklist (Phase 8.5)
-1. Version `v0.13.2` shown in brand header and footer.
-2. Settings preview reads "Estimated maintenance: NNNN kcal/day (7-day weight average × 1.3 baseline activity; logged activity adds on top)."
-3. Today's target ~8% higher than pre-upgrade (multiplier 1.2 → 1.3).
-4. Navigate to a date ≥3 months old with food entries — target reflects rolling avg weight from that period, not today's weight.
-5. Sparse week: window with some missing days still renders a target (LOCF fills gaps within 14-day staleness limit).
-6. Log a weight for today → refresh → today's food-tab target unchanged; tomorrow's will include the new weight.
-7. Sheet: `DailyTargets` tab exists, header = `date | target_kcal | weight_avg_kg | window_days`, spot-check 3 rows.
-8. Sheet: log a food entry → DailyTargets row for today updated. Log a weight on D → D+1..D+7 rows updated.
-9. Sheet: `Metadata!B1 = 4`; B2 mentions DailyTargets and Mifflin-St Jeor × 1.3.
-10. Offline: historic dates show correct targets without a network round-trip.
+## Verification checklist (Phase 8.6)
+1. Version `v0.14.0` shown in brand header and footer.
+2. Chart icon appears left of gear in header; tap target ≥ 44 px.
+3. Tap icon → Progress overlay opens; close button (×) returns to entry view. Tap backdrop also closes.
+4. Range chips: 7d/30d/90d/All. Default 30d. Each tap re-renders all three charts.
+5. **Weight chart**: today's dot matches most recent weight entry. 7-day avg line visible when ≥ 2 avg points exist.
+6. **Calories chart**: today's bar matches food total on Food tab. Dashed target line tracks expected maintenance.
+7. **Net balance chart**: a day with food > target shows an upward (red) bar; surplus day with activity shows smaller bar.
+8. Offline: all charts render from local Dexie (no network needed).
+9. "All" range: renders from first ever entry to today.
+
+## Phase 8.5 ✅ — Rolling-avg calorie target + DailyTargets sheet tab (v0.13.2)
 
 ## Phase 8 ✅ — Local fuzzy-match chip for repeat foods (v0.10.0–v0.12.1, verified)
 

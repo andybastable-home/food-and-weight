@@ -1075,6 +1075,135 @@ body {
 .sync-status.is-error { color: var(--color-danger); }
 
 /* ------------------------------------------------------------------
+   Progress charts
+------------------------------------------------------------------ */
+
+.progress-range-chips {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.range-chip {
+  padding: 5px var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+  min-height: 32px;
+}
+.range-chip.is-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: white;
+}
+.range-chip:not(.is-active):hover { background: var(--color-surface-alt); color: var(--color-text); }
+
+.progress-charts {
+  padding: var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.chart {
+  margin: 0;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+}
+
+.chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-label {
+  margin-top: var(--space-1);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.chart-grid-line {
+  stroke: var(--color-border);
+  stroke-width: 1;
+  fill: none;
+}
+
+.chart-zero-line {
+  stroke: var(--color-text-muted);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.chart-axis-label {
+  font-size: 9px;
+  fill: var(--color-text-muted);
+  font-family: var(--font);
+}
+
+.chart-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-line-weight {
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  opacity: 0.65;
+}
+
+.chart-line-avg {
+  stroke: var(--color-accent-strong);
+  stroke-width: 2.5;
+}
+
+.chart-dot {
+  fill: var(--color-accent);
+  stroke: var(--color-surface);
+  stroke-width: 1.5;
+}
+
+.chart-bar.is-under { fill: var(--color-success); opacity: 0.8; }
+.chart-bar.is-over  { fill: var(--color-danger);  opacity: 0.8; }
+
+.chart-target-line {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.chart-empty {
+  fill: var(--color-text-muted);
+  font-size: 13px;
+  font-family: var(--font);
+}
+
+.progress-loading {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: var(--space-7);
+  font-size: 15px;
+}
+
+/* ------------------------------------------------------------------
    Footer
 ------------------------------------------------------------------ */
 .app-footer {
