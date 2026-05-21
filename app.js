@@ -1595,10 +1595,12 @@ async function loadProgressRange(startDate, endDate) {
     .where('timestamp').between(lookbackStart.getTime(), endOfDay(endDate).getTime(), true, true)
     .toArray();
 
-  // Morning-only weights match the AM-fasted convention; excludes evening outliers.
+  // All weight entries for rolling-avg target (matches computeMaintenanceTarget).
+  // Morning-only for raw chart dots — excludes evening outliers from the displayed line.
   const weightEntries = allEntries
-    .filter(e => e.type === 'weight' && e.timeCategory === 'Morning')
+    .filter(e => e.type === 'weight')
     .sort((a, b) => a.timestamp - b.timestamp);
+  const morningWeightEntries = weightEntries.filter(e => e.timeCategory === 'Morning');
   const foodEntries = allEntries.filter(e => e.type === 'food');
   const workoutEntries = allEntries.filter(e => e.type === 'workout');
 
@@ -1617,7 +1619,7 @@ async function loadProgressRange(startDate, endDate) {
       .filter(e => e.timestamp >= dayStart && e.timestamp <= dayEnd)
       .reduce((sum, e) => sum + (e.calories || 0), 0);
 
-    const dayWeights = weightEntries.filter(e => e.timestamp >= dayStart && e.timestamp <= dayEnd);
+    const dayWeights = morningWeightEntries.filter(e => e.timestamp >= dayStart && e.timestamp <= dayEnd);
     const weight = dayWeights.length > 0 ? dayWeights[dayWeights.length - 1].value : null;
 
     let weightAvg7 = null;
