@@ -132,6 +132,12 @@ body {
   justify-content: space-between;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .settings-btn {
   display: flex;
   align-items: center;

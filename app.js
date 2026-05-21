@@ -1595,7 +1595,10 @@ async function loadProgressRange(startDate, endDate) {
     .where('timestamp').between(lookbackStart.getTime(), endOfDay(endDate).getTime(), true, true)
     .toArray();
 
-  const weightEntries = allEntries.filter(e => e.type === 'weight').sort((a, b) => a.timestamp - b.timestamp);
+  // Morning-only weights match the AM-fasted convention; excludes evening outliers.
+  const weightEntries = allEntries
+    .filter(e => e.type === 'weight' && e.timeCategory === 'Morning')
+    .sort((a, b) => a.timestamp - b.timestamp);
   const foodEntries = allEntries.filter(e => e.type === 'food');
   const workoutEntries = allEntries.filter(e => e.type === 'workout');
 
@@ -1698,9 +1701,13 @@ function addChartGrid(svg, min, max) {
 function addChartXLabels(svg, days, labelEvery, getX) {
   const n = days.length;
   const xFn = getX || ((i) => chartXPos(i, n));
+  const MIN_GAP = 30;
+  let lastX = -Infinity;
   days.forEach((day, i) => {
     if (i % labelEvery !== 0 && i !== n - 1) return;
     const x = xFn(i);
+    if (x - lastX < MIN_GAP) return;
+    lastX = x;
     const d = new Date(day.date + 'T00:00:00');
     const lbl = svgEl('text', { x: x.toFixed(1), y: CHART_H - 4, class: 'chart-axis-label', 'text-anchor': 'middle' });
     lbl.textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -1736,8 +1743,11 @@ function buildWeightChart(days) {
     svg.appendChild(t);
     return fig;
   }
-  const min = Math.min(...vals) - 0.5;
-  const max = Math.max(...vals) + 0.5;
+  const actualMin = Math.min(...vals);
+  const actualMax = Math.max(...vals);
+  const wStep = niceGridStep(Math.max(actualMax - actualMin, 0.5), 4);
+  const min = Math.floor(actualMin / wStep) * wStep;
+  const max = Math.ceil(actualMax / wStep) * wStep;
   addChartGrid(svg, min, max);
   addChartXLabels(svg, days, xLabelEvery(days.length));
 
