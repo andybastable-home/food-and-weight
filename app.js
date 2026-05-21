@@ -1809,10 +1809,10 @@ function buildCaloriesChart(days) {
 }
 
 function buildNetBalanceChart(days) {
-  const { fig, svg } = makeChartWrap('Net Balance (kcal · deficit is good)');
+  const { fig, svg } = makeChartWrap('Net Balance (kcal)');
   const n = days.length;
   const bw = barWidth(n);
-  const nets = days.map(d => d.targetKcal != null ? d.foodKcal - d.workoutKcal - d.targetKcal : null);
+  const nets = days.map(d => (d.targetKcal != null && d.foodKcal) ? d.foodKcal - d.workoutKcal - d.targetKcal : null);
   const vals = nets.filter(v => v != null);
   if (!vals.length) {
     const t = svgEl('text', { x: CHART_W / 2, y: CHART_H / 2, class: 'chart-empty', 'text-anchor': 'middle' });
