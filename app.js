@@ -1779,8 +1779,8 @@ function buildCaloriesChart(days) {
   const getBarX = (i) => barXPos(i, n) + bw / 2;
   const maxFood = Math.max(...days.map(d => d.foodKcal), 0);
   const maxTarget = Math.max(...days.map(d => (d.targetKcal ?? 0) + d.workoutKcal), 0);
-  const yMax = Math.max(maxFood, maxTarget, 100) * 1.1;
-  const yMin = 0;
+  const yMin = 1000;
+  const yMax = Math.max(maxFood, maxTarget, yMin + 200) * 1.1;
   addChartGrid(svg, yMin, yMax);
   addChartXLabels(svg, days, xLabelEvery(n), getBarX);
 
@@ -1789,7 +1789,7 @@ function buildCaloriesChart(days) {
     if (!d.foodKcal) continue;
     const effectiveTarget = (d.targetKcal ?? 0) + d.workoutKcal;
     const isOver = effectiveTarget > 0 && d.foodKcal > effectiveTarget;
-    const bh = Math.max(1, PH * (d.foodKcal / yMax));
+    const bh = Math.max(1, PH * (d.foodKcal - yMin) / (yMax - yMin));
     const by = CP.t + PH - bh;
     svg.appendChild(svgEl('rect', {
       x: barXPos(i, n).toFixed(1), y: by.toFixed(1),
