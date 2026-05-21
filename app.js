@@ -96,7 +96,7 @@ const TYPES = {
     formatDisplay: (e) => `${formatNumber(e.value)} cm`,
   },
   workout: {
-    label: 'Workout',
+    label: 'Activity',
     placeholder: 'What did you do?',
     inputKind: 'text',
     hasTimeCategory: true,
@@ -603,9 +603,9 @@ async function updateCalTargetPreview() {
   if (!preview) return;
   const target = await computeMaintenanceTarget();
   if (target) {
-    preview.textContent = `Estimated maintenance: ${target} kcal/day (sedentary ×1.2). Workout calories will be added in future.`;
+    preview.textContent = `Estimated maintenance: ${target} kcal/day (sedentary ×1.2). Activity calories will be added in future.`;
   } else {
-    preview.textContent = 'Weight is taken from your most recent logged entry. Target uses sedentary activity (×1.2); workout calories will be added in future.';
+    preview.textContent = 'Weight is taken from your most recent logged entry. Target uses sedentary activity (×1.2); activity calories will be added in future.';
   }
 }
 
@@ -1430,7 +1430,7 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
   status.textContent = isUnder ? 'under target' : 'over target';
   const detail = document.createElement('div');
   detail.className = 'cal-detail';
-  const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} workout)` : '';
+  const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} activity)` : '';
   detail.textContent = `eaten ${foodTotal.toLocaleString()} · target ${target.toLocaleString()}${workoutPart}`;
   text.append(status, detail);
 

@@ -29,9 +29,9 @@ Stable UUIDs as sync identity, attach-existing-sheet UX, schema versioning (Meta
 
 ## Next steps (post Phase 8)
 1. **Goals tab.** Second sheet tab with target weight, weekly loss target, maintenance kcal estimate.
-2. **Split AI context: food vs workouts.** Add a second textarea for workout-specific context.
+2. **Split AI context: food vs activity.** Add a second textarea for activity-specific context.
 3. **Multi-modal food calorie classification.** Camera/upload on the food form → Gemini vision.
 
 ## Known follow-ups
 - No "last synced" indicator.
-- Service worker cache: `fw-shell-v0.10.0`.
+- Service worker cache: `fw-shell-v0.11.3`.
