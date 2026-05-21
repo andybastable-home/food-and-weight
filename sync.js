@@ -6,6 +6,9 @@ const SHEET_GID_KEY = 'fw.spike.sheetGid';
 const EMAIL_KEY = 'fw.spike.email';
 const AI_CONTEXT_READY_KEY = 'fw.aiContext.ready';
 const AI_CONTEXT_STORAGE_KEY = 'fw_gemini_context';
+// Access token cached in sessionStorage so SW-triggered reloads (clients.claim →
+// controllerchange → reload) don't re-fire the silent OAuth flow on every load.
+const TOKEN_CACHE_KEY = 'fw.sync.token';
 
 const ENTRIES_HEADER_V1 = ['id', 'epoch', 'iso_date', 'type', 'value', 'notes', 'time_category', 'calories', 'synced_at'];
 const ENTRIES_HEADER_V2 = ['uuid', 'epoch', 'iso_date', 'type', 'value', 'notes', 'time_category', 'calories', 'synced_at'];
@@ -58,6 +61,37 @@ function tokenValid() {
   return !!accessToken && Date.now() < tokenExpiresAt;
 }
 
+function loadCachedToken() {
+  try {
+    const raw = sessionStorage.getItem(TOKEN_CACHE_KEY);
+    if (!raw) return false;
+    const { token, expiresAt } = JSON.parse(raw);
+    if (token && expiresAt && Date.now() < expiresAt) {
+      accessToken = token;
+      tokenExpiresAt = expiresAt;
+      return true;
+    }
+    sessionStorage.removeItem(TOKEN_CACHE_KEY);
+  } catch {
+    sessionStorage.removeItem(TOKEN_CACHE_KEY);
+  }
+  return false;
+}
+
+function saveCachedToken() {
+  if (!accessToken || !tokenExpiresAt) return;
+  try {
+    sessionStorage.setItem(TOKEN_CACHE_KEY, JSON.stringify({
+      token: accessToken,
+      expiresAt: tokenExpiresAt,
+    }));
+  } catch {}
+}
+
+function clearCachedToken() {
+  try { sessionStorage.removeItem(TOKEN_CACHE_KEY); } catch {}
+}
+
 function setSyncStatus(text, tone) {
   if (!syncUI.status) return;
   syncUI.status.textContent = text || '';
@@ -106,6 +140,7 @@ function requestToken({ silent }) {
       if (resp.error) { reject(new Error(`${resp.error}: ${resp.error_description || ''}`)); return; }
       accessToken = resp.access_token;
       tokenExpiresAt = Date.now() + (resp.expires_in - 60) * 1000;
+      saveCachedToken();
       resolve(resp);
     });
     tokenClient.error_callback = settle((err) => {
@@ -765,6 +800,7 @@ function actionForget() {
   localStorage.removeItem(AI_CONTEXT_READY_KEY);
   accessToken = null;
   tokenExpiresAt = 0;
+  clearCachedToken();
   schemaCompatible = true;
   db.entries.toCollection().modify({ synced: false }).catch(() => {});
   console.log('[sync] Local state cleared');
@@ -782,19 +818,31 @@ function initOnLoad() {
     return;
   }
   renderSyncUI();
-  if (getSheetId()) {
-    requestToken({ silent: true })
-      .then(async () => {
-        console.log('[sync] Silent re-auth ok');
-        await captureEmailIfNeeded();
-        await ensureAIContextSheet();
-        await pullContextFromSheet();
-        await pullEntriesFromSheet();
-        renderSyncUI();
-        syncUnsyncedEntries().catch(() => {});
-      })
-      .catch((err) => console.warn('[sync] Silent re-auth failed:', err.message));
-  }
+  if (!getSheetId()) return;
+
+  const hadCachedToken = loadCachedToken();
+  (async () => {
+    if (!tokenValid()) {
+      await requestToken({ silent: true });
+      console.log('[sync] Silent re-auth ok');
+    } else {
+      console.log('[sync] Reusing cached token (skipping OAuth)');
+    }
+    await captureEmailIfNeeded();
+    await ensureAIContextSheet();
+    await pullContextFromSheet();
+    await pullEntriesFromSheet();
+    renderSyncUI();
+    syncUnsyncedEntries().catch(() => {});
+  })().catch((err) => {
+    console.warn('[sync] init failed:', err.message);
+    if (hadCachedToken) {
+      // Cached token may have been revoked server-side — drop it so next attempt re-auths.
+      accessToken = null;
+      tokenExpiresAt = 0;
+      clearCachedToken();
+    }
+  });
 }
 
 initOnLoad();
