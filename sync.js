@@ -6,6 +6,7 @@ const SHEET_GID_KEY = 'fw.spike.sheetGid';
 const EMAIL_KEY = 'fw.spike.email';
 const AI_CONTEXT_READY_KEY = 'fw.aiContext.ready';
 const AI_CONTEXT_STORAGE_KEY = 'fw_gemini_context';
+const FITNESS_CONTEXT_STORAGE_KEY = 'fw_gemini_fitness_context';
 const DAILY_TARGETS_READY_KEY = 'fw.dailyTargets.ready';
 // Access token cached in sessionStorage so SW-triggered reloads (clients.claim →
 // controllerchange → reload) don't re-fire the silent OAuth flow on every load.
@@ -249,7 +250,7 @@ async function ensureSheet() {
   );
   await apiCall(
     `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/AI_Context!A1:append?valueInputOption=RAW`,
-    { method: 'POST', body: JSON.stringify({ values: [['Diet Context Profile']] }) }
+    { method: 'POST', body: JSON.stringify({ values: [['Diet Context Profile', 'Fitness Context Profile']] }) }
   );
   await apiCall(
     `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Metadata!A1:B2?valueInputOption=RAW`,
@@ -277,7 +278,7 @@ async function ensureAIContextSheet() {
     });
     await apiCall(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/AI_Context!A1:append?valueInputOption=RAW`,
-      { method: 'POST', body: JSON.stringify({ values: [['Diet Context Profile']] }) }
+      { method: 'POST', body: JSON.stringify({ values: [['Diet Context Profile', 'Fitness Context Profile']] }) }
     );
     console.log('[sync] AI_Context sheet added');
   } catch (err) {
@@ -317,24 +318,40 @@ async function pushContextToSheet(contextString) {
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/AI_Context!A2?valueInputOption=RAW`,
     { method: 'PUT', body: JSON.stringify({ values: [[contextString]] }) }
   );
-  console.log('[sync] AI context pushed to sheet');
+  console.log('[sync] diet context pushed to sheet');
+}
+
+async function pushFitnessContextToSheet(contextString) {
+  if (!getSheetId() || !tokenValid() || !schemaCompatible) return;
+  const sheetId = getSheetId();
+  await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/AI_Context!B2?valueInputOption=RAW`,
+    { method: 'PUT', body: JSON.stringify({ values: [[contextString]] }) }
+  );
+  console.log('[sync] fitness context pushed to sheet');
 }
 
 async function pullContextFromSheet() {
   if (!getSheetId()) return;
-  if (localStorage.getItem(AI_CONTEXT_STORAGE_KEY)) return;
   try {
     const sheetId = getSheetId();
     const data = await apiCall(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/AI_Context!A2`
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/AI_Context!A2:B2`
     );
-    const val = data.values?.[0]?.[0];
-    if (val) {
-      localStorage.setItem(AI_CONTEXT_STORAGE_KEY, val);
+    const row = data.values?.[0] ?? [];
+    const dietVal = row[0];
+    const fitnessVal = row[1];
+    if (dietVal !== undefined) {
+      localStorage.setItem(AI_CONTEXT_STORAGE_KEY, dietVal);
       const textarea = document.getElementById('cfg-ai-context');
-      if (textarea) textarea.value = val;
-      console.log('[sync] AI context pulled from sheet');
+      if (textarea) textarea.value = dietVal;
     }
+    if (fitnessVal !== undefined) {
+      localStorage.setItem(FITNESS_CONTEXT_STORAGE_KEY, fitnessVal);
+      const textarea = document.getElementById('cfg-ai-fitness-context');
+      if (textarea) textarea.value = fitnessVal;
+    }
+    console.log('[sync] AI context pulled from sheet');
   } catch (err) {
     console.warn('[sync] pullContextFromSheet failed:', err.message);
   }

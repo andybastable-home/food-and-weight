@@ -724,6 +724,9 @@ function initSettingsPanel() {
   if (fitnessCtxEl) {
     fitnessCtxEl.addEventListener('blur', () => {
       localStorage.setItem('fw_gemini_fitness_context', fitnessCtxEl.value);
+      if (typeof pushFitnessContextToSheet === 'function') {
+        pushFitnessContextToSheet(fitnessCtxEl.value).catch(() => {});
+      }
     });
   }
 
