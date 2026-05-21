@@ -50,7 +50,11 @@ db.version(3).stores({
 });
 
 // Sheet format version this build knows how to read/write.
-const SHEET_SCHEMA_VERSION = 3;
+const SHEET_SCHEMA_VERSION = 4;
+
+const WEIGHT_AVG_WINDOW_DAYS = 7;
+const ACTIVITY_MULTIPLIER = 1.3;
+const WEIGHT_STALENESS_LIMIT_DAYS = 14;
 
 // Map Gemini's confidence labels to compact storage values.
 function mapConfidence(geminiConf) {
@@ -606,31 +610,70 @@ function loadSettingsValues() {
 async function updateCalTargetPreview() {
   const preview = document.getElementById('cfg-cal-preview');
   if (!preview) return;
-  const target = await computeMaintenanceTarget();
+  const info = await computeMaintenanceTarget();
+  const target = info?.targetKcal;
   if (target) {
-    preview.textContent = `Estimated maintenance: ${target} kcal/day (sedentary ×1.2). Activity calories will be added in future.`;
+    preview.textContent = `Estimated maintenance: ${target} kcal/day (7-day weight average × 1.3 baseline activity; logged activity adds on top).`;
   } else {
-    preview.textContent = 'Weight is taken from your most recent logged entry. Target uses sedentary activity (×1.2); activity calories will be added in future.';
+    preview.textContent = 'Set your profile fields above to see an estimated maintenance target.';
   }
 }
 
-async function computeMaintenanceTarget() {
+// Returns { targetKcal, weightAvg, source } or null.
+// source: 'avg' (≥1 weight in window) | 'single-stale' (fallback) | null (no data).
+async function computeMaintenanceTarget(date = new Date()) {
   const sex = localStorage.getItem('fw_cal_sex') || '';
   const age = parseFloat(localStorage.getItem('fw_cal_age') || '');
   const height = parseFloat(localStorage.getItem('fw_cal_height') || '');
   if (!sex || !age || !height) return null;
 
-  const latestWeight = await db.entries
-    .where('type').equals('weight')
-    .reverse().sortBy('timestamp')
-    .then((rows) => rows[0]?.value ?? null);
-  if (!latestWeight) return null;
+  // Single query covering the full look-back range (window + staleness buffer).
+  const rangeStart = startOfDay(addDays(date, -(WEIGHT_AVG_WINDOW_DAYS + WEIGHT_STALENESS_LIMIT_DAYS))).getTime();
+  const rangeEnd = endOfDay(addDays(date, -1)).getTime();
+  const candidates = await db.entries
+    .where('timestamp').between(rangeStart, rangeEnd, true, true)
+    .and(e => e.type === 'weight')
+    .sortBy('timestamp');
 
-  // Mifflin-St Jeor BMR
+  // LOCF: for each window day (date-7 through date-1), take the last weight within
+  // the staleness limit for that day.
+  const representatives = [];
+  for (let offset = WEIGHT_AVG_WINDOW_DAYS; offset >= 1; offset--) {
+    const day = addDays(date, -offset);
+    const dayEnd = endOfDay(day).getTime();
+    const staleLimit = startOfDay(addDays(day, -WEIGHT_STALENESS_LIMIT_DAYS)).getTime();
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const ts = candidates[i].timestamp;
+      if (ts <= dayEnd && ts >= staleLimit) {
+        representatives.push(candidates[i].value);
+        break;
+      }
+    }
+  }
+
+  let weightAvg, source;
+  if (representatives.length > 0) {
+    weightAvg = representatives.reduce((s, v) => s + v, 0) / representatives.length;
+    source = 'avg';
+  } else {
+    // Fallback: most recent weight ever logged before the target date.
+    const targetStart = startOfDay(date).getTime();
+    const fallback = await db.entries
+      .where('type').equals('weight')
+      .and(e => e.timestamp < targetStart)
+      .reverse()
+      .sortBy('timestamp')
+      .then(rows => rows[0] ?? null);
+    if (!fallback) return null;
+    weightAvg = fallback.value;
+    source = 'single-stale';
+    console.log('[app] computeMaintenanceTarget: stale fallback weight', fallback.value, 'from', new Date(fallback.timestamp).toISOString());
+  }
+
   const bmr = sex === 'male'
-    ? 10 * latestWeight + 6.25 * height - 5 * age + 5
-    : 10 * latestWeight + 6.25 * height - 5 * age - 161;
-  return Math.round(bmr * 1.2);
+    ? 10 * weightAvg + 6.25 * height - 5 * age + 5
+    : 10 * weightAvg + 6.25 * height - 5 * age - 161;
+  return { targetKcal: Math.round(bmr * ACTIVITY_MULTIPLIER), weightAvg, source };
 }
 
 function initSettingsPanel() {
@@ -1401,7 +1444,8 @@ async function refreshList() {
     const workoutDay = currentTab === 'workout' ? entries : await loadEntries(currentDate, 'workout');
     const foodTotal = Math.round(foodDay.reduce((sum, e) => sum + (e.calories || 0), 0));
     const workoutTotal = Math.round(workoutDay.reduce((sum, e) => sum + (e.calories || 0), 0));
-    const target = await computeMaintenanceTarget();
+    const targetInfo = await computeMaintenanceTarget(currentDate);
+    const target = targetInfo?.targetKcal ?? null;
 
     renderCalorieTotal({ foodTotal, workoutTotal, target });
     els.calTotal.hidden = false;

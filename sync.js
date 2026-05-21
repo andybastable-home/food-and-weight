@@ -6,6 +6,7 @@ const SHEET_GID_KEY = 'fw.spike.sheetGid';
 const EMAIL_KEY = 'fw.spike.email';
 const AI_CONTEXT_READY_KEY = 'fw.aiContext.ready';
 const AI_CONTEXT_STORAGE_KEY = 'fw_gemini_context';
+const DAILY_TARGETS_READY_KEY = 'fw.dailyTargets.ready';
 // Access token cached in sessionStorage so SW-triggered reloads (clients.claim →
 // controllerchange → reload) don't re-fire the silent OAuth flow on every load.
 const TOKEN_CACHE_KEY = 'fw.sync.token';
@@ -26,7 +27,11 @@ const ENTRIES_RANGE_ALL = 'Entries!A:O';
 const ENTRIES_RANGE_HEADER = 'Entries!A1:O1';
 const ENTRIES_ROW_RANGE = (rowNum) => `Entries!A${rowNum}:O${rowNum}`;
 
-const ENTRY_CONVENTION_NOTE = 'time_category is canonical for meal/activity ordering; epoch/iso_date is moment-of-entry and may not match the real meal/activity time. Weight entries are AM-fasted by convention (time_category=Morning, timestamp=noon-of-day). A type=skip_food entry marks an intentional day-off from food logging; the reason is in column E (value) — treat the date as deliberately untracked, not missing.';
+const DAILY_TARGETS_HEADER = ['date', 'target_kcal', 'weight_avg_kg', 'window_days'];
+const DAILY_TARGETS_RANGE_ALL = 'DailyTargets!A:D';
+const DAILY_TARGETS_RANGE_HEADER = 'DailyTargets!A1:D1';
+
+const ENTRY_CONVENTION_NOTE = 'time_category is canonical for meal/activity ordering; epoch/iso_date is moment-of-entry and may not match the real meal/activity time. Weight entries are AM-fasted by convention (time_category=Morning, timestamp=noon-of-day). A type=skip_food entry marks an intentional day-off from food logging; the reason is in column E (value) — treat the date as deliberately untracked, not missing. The DailyTargets tab records the per-day maintenance calorie target: Mifflin-St Jeor BMR × 1.3 (NEAT-adjusted sedentary baseline), computed from the 7-day trailing average weight (the 7 calendar days strictly before the target date). Logged activity entries are additional kcal on top of this target — do not double-count.';
 
 let tokenClient = null;
 let accessToken = null;
@@ -281,6 +286,30 @@ async function ensureAIContextSheet() {
   localStorage.setItem(AI_CONTEXT_READY_KEY, '1');
 }
 
+async function ensureDailyTargetsSheet() {
+  if (!getSheetId()) return;
+  if (localStorage.getItem(DAILY_TARGETS_READY_KEY)) return;
+  const sheetId = getSheetId();
+  try {
+    await apiCall(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'DailyTargets' } } }] }),
+    });
+    console.log('[sync] DailyTargets sheet added');
+  } catch (err) {
+    console.log('[sync] DailyTargets sheet check:', err.message.slice(0, 80));
+  }
+  try {
+    await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${DAILY_TARGETS_RANGE_HEADER}?valueInputOption=RAW`,
+      { method: 'PUT', body: JSON.stringify({ values: [DAILY_TARGETS_HEADER] }) }
+    );
+  } catch (err) {
+    console.log('[sync] DailyTargets header write failed:', err.message.slice(0, 80));
+  }
+  localStorage.setItem(DAILY_TARGETS_READY_KEY, '1');
+}
+
 async function pushContextToSheet(contextString) {
   if (!getSheetId() || !tokenValid() || !schemaCompatible) return;
   const sheetId = getSheetId();
@@ -511,6 +540,120 @@ async function migrateSheetV2ToV3() {
   return true;
 }
 
+async function migrateSheetV3ToV4() {
+  const sheetId = getSheetId();
+  if (!sheetId) return false;
+
+  console.log('[sync] Migrating sheet v3→v4…');
+
+  // Create DailyTargets tab + header (idempotent).
+  localStorage.removeItem(DAILY_TARGETS_READY_KEY);
+  await ensureDailyTargetsSheet();
+
+  // Collect all distinct ISO dates that have any logged entry.
+  const allEntries = await db.entries.toArray();
+  const dateSet = new Set();
+  for (const e of allEntries) {
+    if (e.type === 'skip_food') continue;
+    dateSet.add(new Date(e.timestamp).toISOString().slice(0, 10));
+  }
+  const sortedDates = [...dateSet].sort();
+
+  const rows = [];
+  for (const iso of sortedDates) {
+    const info = await computeMaintenanceTarget(new Date(iso + 'T12:00:00'));
+    if (!info) continue;
+    rows.push([iso, info.targetKcal, Math.round(info.weightAvg * 100) / 100, WEIGHT_AVG_WINDOW_DAYS]);
+  }
+
+  if (rows.length > 0) {
+    await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/DailyTargets!A2:append?valueInputOption=RAW`,
+      { method: 'POST', body: JSON.stringify({ values: rows }) }
+    );
+  }
+
+  await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Metadata!A1:B2?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        values: [
+          ['schema_version', 4],
+          ['entry_conventions', ENTRY_CONVENTION_NOTE],
+        ],
+      }),
+    }
+  );
+
+  console.log('[sync] Sheet at v4, backfilled', rows.length, 'DailyTargets rows');
+  return true;
+}
+
+// Per-session cache: iso-date string → 1-based row number in DailyTargets sheet.
+const dailyTargetsRowCache = new Map();
+
+async function upsertDailyTargetForDate(date) {
+  if (!getSheetId() || !tokenValid() || !schemaCompatible) return;
+  if (!localStorage.getItem(DAILY_TARGETS_READY_KEY)) return;
+  const info = await computeMaintenanceTarget(date);
+  if (!info) return;
+
+  const sheetId = getSheetId();
+  const iso = new Date(date).toISOString().slice(0, 10);
+
+  let rowNum = dailyTargetsRowCache.get(iso);
+  if (!rowNum) {
+    const colA = await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/DailyTargets!A:A`
+    );
+    const col = colA.values || [];
+    const idx = col.findIndex((r, i) => i > 0 && r[0] === iso);
+    rowNum = idx !== -1 ? idx + 1 : col.length + 1;
+    dailyTargetsRowCache.set(iso, rowNum);
+  }
+
+  await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/DailyTargets!A${rowNum}:D${rowNum}?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        values: [[iso, info.targetKcal, Math.round(info.weightAvg * 100) / 100, WEIGHT_AVG_WINDOW_DAYS]],
+      }),
+    }
+  );
+  console.log('[sync] DailyTargets upserted for', iso);
+}
+
+async function upsertDailyTargetsForEntries(entries) {
+  if (!localStorage.getItem(DAILY_TARGETS_READY_KEY)) return;
+  const today = new Date();
+  const datesToUpsert = new Set();
+
+  for (const entry of entries) {
+    if (!entry.timestamp) continue;
+    const entryDate = new Date(entry.timestamp);
+    const iso = entryDate.toISOString().slice(0, 10);
+
+    if (entry.type === 'weight') {
+      // Weight on D → targets for D+1 through D+7 use this weight. Update them.
+      for (let i = 1; i <= WEIGHT_AVG_WINDOW_DAYS; i++) {
+        const d = new Date(entryDate);
+        d.setDate(d.getDate() + i);
+        if (d <= today) datesToUpsert.add(d.toISOString().slice(0, 10));
+      }
+    } else if (entry.type === 'food' || entry.type === 'workout') {
+      datesToUpsert.add(iso);
+    }
+  }
+
+  for (const iso of datesToUpsert) {
+    await upsertDailyTargetForDate(new Date(iso + 'T12:00:00')).catch(err =>
+      console.warn('[sync] upsertDailyTargetForDate failed for', iso, ':', err.message)
+    );
+  }
+}
+
 // Pull entries from sheet → local, with sheet-wins merge by uuid. Local-only rows are
 // left alone (the syncUnsynced path pushes them up). Returns the count of rows processed.
 async function pullEntriesFromSheet() {
@@ -524,6 +667,7 @@ async function pullEntriesFromSheet() {
       // No Metadata tab → either legacy v1 or a foreign sheet. Header check + cascade migrate.
       await migrateSheetV1ToV2();
       await migrateSheetV2ToV3();
+      await migrateSheetV3ToV4();
     } else if (version > SHEET_SCHEMA_VERSION) {
       schemaCompatible = false;
       console.warn('[sync] Sheet schema v' + version + ' is newer than this app understands (v' + SHEET_SCHEMA_VERSION + '). Pull & push disabled.');
@@ -532,6 +676,7 @@ async function pullEntriesFromSheet() {
     } else if (version < SHEET_SCHEMA_VERSION) {
       if (version < 2) await migrateSheetV1ToV2();
       if (version < 3) await migrateSheetV2ToV3();
+      if (version < 4) await migrateSheetV3ToV4();
     }
     schemaCompatible = true;
 
@@ -633,6 +778,7 @@ async function syncEntriesToSheet(entriesArray) {
   );
   renderSyncUI();
   console.log('[sync] Synced', rows.length, 'entries');
+  upsertDailyTargetsForEntries(entriesArray).catch(() => {});
 }
 
 async function findRowIndexByUuid(sheetId, uuid) {
@@ -689,6 +835,7 @@ async function updateEntryInSheet(entry) {
     { method: 'PUT', body: JSON.stringify({ values: [entryToRow(entry)] }) }
   );
   console.log('[sync] Row updated in sheet:', entry.uuid);
+  upsertDailyTargetsForEntries([entry]).catch(() => {});
 }
 
 function extractSheetId(input) {
@@ -757,6 +904,7 @@ async function actionConnect() {
       await attachToSheet(inputVal);
       if (syncUI.url) syncUI.url.value = '';
       await ensureAIContextSheet();
+      await ensureDailyTargetsSheet();
       await pullContextFromSheet();
       const n = await pullEntriesFromSheet();
       renderSyncUI();
@@ -769,6 +917,7 @@ async function actionConnect() {
       await captureEmailIfNeeded();
       await ensureSheet();
       await ensureAIContextSheet();
+      await ensureDailyTargetsSheet();
       await pullContextFromSheet();
       await pullEntriesFromSheet();
       renderSyncUI();
@@ -798,6 +947,8 @@ function actionForget() {
   clearSheetGid();
   clearEmail();
   localStorage.removeItem(AI_CONTEXT_READY_KEY);
+  localStorage.removeItem(DAILY_TARGETS_READY_KEY);
+  dailyTargetsRowCache.clear();
   accessToken = null;
   tokenExpiresAt = 0;
   clearCachedToken();
@@ -830,6 +981,7 @@ function initOnLoad() {
     }
     await captureEmailIfNeeded();
     await ensureAIContextSheet();
+    await ensureDailyTargetsSheet();
     await pullContextFromSheet();
     await pullEntriesFromSheet();
     renderSyncUI();
