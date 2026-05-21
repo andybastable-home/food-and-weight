@@ -1,12 +1,12 @@
 # Status
 
 ## Current phase
-**Phase 8.5 🚧 — Rolling-avg calorie target + DailyTargets sheet tab** (v0.13.0; coded, pending verification on phone).
+**Phase 8.5 🚧 — Rolling-avg calorie target + DailyTargets sheet tab** (v0.13.1; coded, pending verification on phone).
 
 7-day trailing weight average (days strictly before the target date) replaces the single most-recent weight. Activity multiplier bumped 1.2 → 1.3 (NEAT-adjusted sedentary). New `DailyTargets` tab in the Google Sheet: `date | target_kcal | weight_avg_kg | window_days`. Schema bumped to v4 with backfill migration.
 
 ## Verification checklist (Phase 8.5)
-1. Version `v0.13.0` shown in brand header and footer.
+1. Version `v0.13.1` shown in brand header and footer.
 2. Settings preview reads "Estimated maintenance: NNNN kcal/day (7-day weight average × 1.3 baseline activity; logged activity adds on top)."
 3. Today's target ~8% higher than pre-upgrade (multiplier 1.2 → 1.3).
 4. Navigate to a date ≥3 months old with food entries — target reflects rolling avg weight from that period, not today's weight.
@@ -34,9 +34,8 @@ Stable UUIDs as sync identity, attach-existing-sheet UX, schema versioning (Meta
 
 ## Next steps (post Phase 8.5)
 1. **Goals tab (Phase 9).** User-set aspirations: target weight, weekly deficit. DailyTargets already provides per-day maintenance estimate; Goals tab adds the user's stated goal on top.
-2. **Split AI context: food vs activity.** Add a second textarea for activity-specific context.
-3. **Multi-modal food calorie classification.** Camera/upload on the food form → Gemini vision.
+2. **Multi-modal food calorie classification.** Camera/upload on the food form → Gemini vision.
 
 ## Known follow-ups
 - No "last synced" indicator.
-- Service worker cache: `fw-shell-v0.13.0`.
+- Service worker cache: `fw-shell-v0.13.1`.

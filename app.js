@@ -446,7 +446,7 @@ async function requestGeminiEstimation(inputText) {
 
   if (!apiKey) throw new Error('No API key configured — set it in the AI tab.');
 
-  const prompt = `You are a personal diet assistant tracker. Estimate calories for the food item using the following context guidelines:\n\n[CONTEXT]\n${contextText}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant food emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
+  const prompt = `You are a personal diet assistant helping with weight loss. Estimate calories for the food item as accurately as possible. Where there is genuine uncertainty, err on the side of overestimating calories (not underestimating) to support weight loss goals — but do not adjust estimates that already have high confidence.\n\n[PERSONAL DIET PROFILE]\n${contextText || 'No personal profile set.'}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant food emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
 
   const base = 'https://generativelanguage.googleapis.com/v1beta/models';
   const body = JSON.stringify({
@@ -483,6 +483,7 @@ async function requestWorkoutEstimation(inputText, effort) {
   const apiKey = (localStorage.getItem('fw_gemini_key') || '').trim();
   if (!apiKey) throw new Error('No API key configured — set it in the AI tab.');
 
+  const fitnessContext = (localStorage.getItem('fw_gemini_fitness_context') || '').trim();
   const age = localStorage.getItem('fw_cal_age') || 'unknown';
   const sex = localStorage.getItem('fw_cal_sex') || 'unknown';
   const height = localStorage.getItem('fw_cal_height') || 'unknown';
@@ -500,7 +501,7 @@ async function requestWorkoutEstimation(inputText, effort) {
   const effortKey = (effort || 'low').toLowerCase();
   const effortLine = EFFORT_DESCRIPTIONS[effortKey] || EFFORT_DESCRIPTIONS.low;
 
-  const prompt = `You are a conservative exercise calorie estimator. Err on the side of underestimating calories burned to maintain conservative diet goals. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg.\n\n[ACTIVITY]\n${inputText}\n\n[EFFORT]\nUser-reported effort: ${effortKey} — ${effortLine}\nUse this to calibrate intensity assumptions (pace, heart-rate zone, work-to-rest ratio).\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant activity emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
+  const prompt = `You are a conservative exercise calorie estimator helping with weight loss. Estimate calories burned as accurately as possible. Where there is genuine uncertainty, err on the side of underestimating (not overestimating) to support weight loss goals — but do not adjust estimates that already have high confidence. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg.\n\n[PERSONAL FITNESS PROFILE]\n${fitnessContext || 'No personal profile set.'}\n\n[ACTIVITY]\n${inputText}\n\n[EFFORT]\nUser-reported effort: ${effortKey} — ${effortLine}\nUse this to calibrate intensity assumptions (pace, heart-rate zone, work-to-rest ratio).\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant activity emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
 
   const base = 'https://generativelanguage.googleapis.com/v1beta/models';
   const body = JSON.stringify({
@@ -595,8 +596,10 @@ function matchFrequent(query) {
 function loadSettingsValues() {
   const keyEl = document.getElementById('cfg-ai-key');
   const ctxEl = document.getElementById('cfg-ai-context');
+  const fitnessCtxEl = document.getElementById('cfg-ai-fitness-context');
   if (keyEl) keyEl.value = localStorage.getItem('fw_gemini_key') || '';
   if (ctxEl) ctxEl.value = localStorage.getItem('fw_gemini_context') || '';
+  if (fitnessCtxEl) fitnessCtxEl.value = localStorage.getItem('fw_gemini_fitness_context') || '';
 
   const sexEl = document.getElementById('cfg-cal-sex');
   const ageEl = document.getElementById('cfg-cal-age');
@@ -682,6 +685,7 @@ function initSettingsPanel() {
   const closeBtn = document.getElementById('settings-close');
   const keyEl = document.getElementById('cfg-ai-key');
   const ctxEl = document.getElementById('cfg-ai-context');
+  const fitnessCtxEl = document.getElementById('cfg-ai-fitness-context');
   const sexEl = document.getElementById('cfg-cal-sex');
   const ageEl = document.getElementById('cfg-cal-age');
   const htEl = document.getElementById('cfg-cal-height');
@@ -716,6 +720,12 @@ function initSettingsPanel() {
       pushContextToSheet(ctxEl.value).catch(() => {});
     }
   });
+
+  if (fitnessCtxEl) {
+    fitnessCtxEl.addEventListener('blur', () => {
+      localStorage.setItem('fw_gemini_fitness_context', fitnessCtxEl.value);
+    });
+  }
 
   function saveCalField() {
     if (sexEl) localStorage.setItem('fw_cal_sex', sexEl.value);
