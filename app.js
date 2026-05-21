@@ -1787,14 +1787,15 @@ function buildCaloriesChart(days) {
   for (let i = 0; i < n; i++) {
     const d = days[i];
     if (!d.foodKcal) continue;
-    const effectiveTarget = (d.targetKcal ?? 0) + d.workoutKcal;
-    const isOver = effectiveTarget > 0 && d.foodKcal > effectiveTarget;
+    const effectiveTarget = d.targetKcal != null ? d.targetKcal + d.workoutKcal : null;
+    const barClass = effectiveTarget == null ? 'is-neutral'
+      : d.foodKcal > effectiveTarget ? 'is-over' : 'is-under';
     const bh = Math.max(1, PH * (d.foodKcal - yMin) / (yMax - yMin));
     const by = CP.t + PH - bh;
     svg.appendChild(svgEl('rect', {
       x: barXPos(i, n).toFixed(1), y: by.toFixed(1),
       width: bw.toFixed(1), height: bh.toFixed(1),
-      rx: '2', class: `chart-bar ${isOver ? 'is-over' : 'is-under'}`,
+      rx: '2', class: `chart-bar ${barClass}`,
     }));
   }
 

@@ -1186,8 +1186,9 @@ body {
   stroke-width: 1.5;
 }
 
-.chart-bar.is-under { fill: var(--color-success); opacity: 0.8; }
-.chart-bar.is-over  { fill: var(--color-danger);  opacity: 0.8; }
+.chart-bar.is-under   { fill: var(--color-success);      opacity: 0.8; }
+.chart-bar.is-over    { fill: var(--color-danger);       opacity: 0.8; }
+.chart-bar.is-neutral { fill: var(--color-text-muted);   opacity: 0.4; }
 
 .chart-target-line {
   fill: none;
