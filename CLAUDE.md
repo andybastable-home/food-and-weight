@@ -38,7 +38,7 @@ This project runs on Claude Pro with hard usage limits. Be deliberate about cont
 - **Prefer Grep over reading whole files** when locating a symbol or string. Read the whole file only after you know which one matters.
 - **No speculative refactors, no "while we're here" cleanup.** Do exactly what was asked.
 - **Skip end-of-turn recap prose.** A one-line "done; STATUS updated" is enough.
-- **Andy may run git commands manually** (commit/push) to save tokens. Don't auto-commit unless explicitly asked; when changes are ready, just say so and let him drive.
+- **Perform git operations** (commit and push) as the final step of every task. Don't wait to be asked — stage relevant files, commit with a clear message, and push. Andy drives git only if he says so explicitly.
 
 ## STATUS.md discipline
 
@@ -50,7 +50,7 @@ This project runs on Claude Pro with hard usage limits. Be deliberate about cont
 
 **Bump the version with every commit.** This app is deployed as a PWA and version numbers are the primary way Andy confirms the correct build loaded on his phone during testing.
 
-- Version lives in three places — keep them in sync: `index.html` (brand-version span + footer span) and `service-worker.js` (`CACHE_VERSION`).
+- Version lives in three places — always bump all three in lockstep: `index.html` (brand-version span + footer span) and `service-worker.js` (`CACHE_VERSION`). Missing any one causes the display version and cached assets to diverge.
 - Use semver patch bumps (v0.5.1 → v0.5.2) for most changes; minor bumps (v0.5.x → v0.6.0) for significant feature milestones.
 
 ## Constraints
