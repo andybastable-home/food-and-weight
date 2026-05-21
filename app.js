@@ -110,6 +110,11 @@ const TYPES = {
     isCollapsible: false,
     formatDisplay: (e) => e.text,
   },
+  // Virtual tab: renders weight + waist forms stacked, and lists both kinds together.
+  // Entries themselves are still stored with type 'weight' or 'waist'.
+  measurements: {
+    label: 'Measurements',
+  },
 };
 
 // ------------------------------------------------------------------
@@ -854,7 +859,55 @@ function buildEffortPills(selectedValue) {
   return container;
 }
 
+function renderMeasurementsForms() {
+  const container = document.createElement('div');
+  container.className = 'measurements-forms';
+
+  for (const type of ['weight', 'waist']) {
+    const config = TYPES[type];
+
+    const form = document.createElement('form');
+    form.className = 'measurement-form';
+    form.autocomplete = 'off';
+
+    const label = document.createElement('label');
+    label.className = 'measurement-label';
+    label.textContent = config.label;
+
+    const input = buildPrimaryInput(config);
+    const wrap = buildInputWrap(config, input);
+    label.htmlFor = `m-${type}-input`;
+    input.id = `m-${type}-input`;
+
+    const row = document.createElement('div');
+    row.className = 'measurement-row';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'submit';
+    saveBtn.className = 'btn btn-primary';
+    saveBtn.textContent = 'Save';
+
+    row.append(wrap, saveBtn);
+    form.append(label, row);
+
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const ok = await handleAdd(type, { value: input.value });
+      if (ok) input.value = '';
+    });
+
+    container.appendChild(form);
+  }
+
+  els.formContainer.replaceChildren(container);
+}
+
 function renderEntryForm() {
+  if (currentTab === 'measurements') {
+    renderMeasurementsForms();
+    return;
+  }
+
   const config = TYPES[currentTab];
 
   if (currentTab === 'food' && skipMarker) {
@@ -1319,7 +1372,16 @@ function renderEntries(entries) {
 }
 
 async function refreshList() {
-  const entries = await loadEntries(currentDate, currentTab);
+  let entries;
+  if (currentTab === 'measurements') {
+    const [weights, waists] = await Promise.all([
+      loadEntries(currentDate, 'weight'),
+      loadEntries(currentDate, 'waist'),
+    ]);
+    entries = [...weights, ...waists].sort((a, b) => a.timestamp - b.timestamp);
+  } else {
+    entries = await loadEntries(currentDate, currentTab);
+  }
   renderEntries(entries);
 
   if (currentTab === 'food' && skipMarker) {
