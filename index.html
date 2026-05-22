@@ -18,7 +18,7 @@
     <div class="brand">
       <img src="./icons/icon.svg" alt="" class="brand-mark" width="32" height="32">
       <span class="brand-name">Food &amp; Weight</span>
-      <span class="brand-version" aria-label="App version">v0.14.5</span>
+      <span class="brand-version" aria-label="App version">v0.15.0</span>
     </div>
     <div class="header-actions">
       <button id="progress-btn" class="settings-btn" type="button" aria-label="Progress charts">
@@ -86,6 +86,22 @@ e.g. * I run at ~5:30/km pace
           <input type="number" id="cfg-cal-height" class="ai-config-input" placeholder="e.g. 178" min="100" max="250">
         </div>
         <p class="ai-config-hint" id="cfg-cal-preview">Weight is taken from your most recent logged entry. Target uses sedentary activity (×1.2); activity calories will be added in future.</p>
+
+        <h2 class="settings-section-title">Weekly Goal</h2>
+        <div class="ai-config-section">
+          <label class="ai-config-label" for="cfg-goal-kg">Weight loss goal (kg per week)</label>
+          <input type="number" id="cfg-goal-kg" class="ai-config-input" placeholder="0.6" min="0" max="2" step="0.05" inputmode="decimal">
+        </div>
+        <div class="ai-config-section">
+          <label class="ai-config-label" for="cfg-goal-weekend-ratio">Weekend deficit ratio</label>
+          <input type="number" id="cfg-goal-weekend-ratio" class="ai-config-input" placeholder="0.5" min="0.2" max="1" step="0.05" inputmode="decimal">
+          <p class="ai-config-hint">Weekend days create this fraction of a weekday's deficit. 1.0 = flat across the week; 0.5 = weekend days produce half the deficit.</p>
+        </div>
+        <div class="ai-config-section">
+          <label class="ai-config-label">Weekend days</label>
+          <div class="goal-weekend-days" id="cfg-goal-weekend-days" role="group" aria-label="Which days count as weekend"></div>
+        </div>
+        <p class="ai-config-hint" id="cfg-goal-preview"></p>
 
         <h2 class="settings-section-title">Sheets Sync</h2>
         <div class="ai-config-section">
@@ -176,7 +192,7 @@ e.g. * I run at ~5:30/km pace
   </main>
 
   <footer class="app-footer">
-    <span>v0.14.5 &middot; offline-ready</span>
+    <span>v0.15.0 &middot; offline-ready</span>
   </footer>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>

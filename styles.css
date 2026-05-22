@@ -26,6 +26,7 @@
   --color-success: hsl(150 45% 42%);
   --color-danger: hsl(2 65% 52%);
   --color-danger-soft: hsl(2 70% 96%);
+  --color-warning: hsl(32 85% 48%);
 
   /* Time category colors */
   --color-breakfast: hsl(40 60% 94%);
@@ -73,6 +74,7 @@
     --color-success: hsl(150 50% 55%);
     --color-danger: hsl(2 70% 62%);
     --color-danger-soft: hsl(2 30% 18%);
+    --color-warning: hsl(32 80% 60%);
 
     /* Time category colors (dark mode) */
     --color-breakfast: hsl(40 30% 18%);
@@ -1208,6 +1210,86 @@ body {
   color: var(--color-text-muted);
   padding: var(--space-7);
   font-size: 15px;
+}
+
+/* ------------------------------------------------------------------
+   Weekly goal — pace tile + weekly chart current-week bar
+------------------------------------------------------------------ */
+
+.pace-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pace-section-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.pace-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px var(--color-shadow), 0 8px 24px var(--color-shadow);
+}
+
+.pace-tile.is-behind   .cal-ring-fill { stroke: var(--color-danger); }
+.pace-tile.is-on-pace  .cal-ring-fill { stroke: var(--color-success); }
+.pace-tile.is-ahead    .cal-ring-fill { stroke: var(--color-success); }
+.pace-tile.is-way-ahead .cal-ring-fill { stroke: var(--color-warning); }
+.pace-tile.is-muted    .cal-ring-fill { stroke: var(--color-text-muted); }
+
+.pace-tile.is-behind    .cal-hero,
+.pace-tile.is-behind    .cal-status { color: var(--color-danger); }
+.pace-tile.is-on-pace   .cal-hero,
+.pace-tile.is-on-pace   .cal-status,
+.pace-tile.is-ahead     .cal-hero,
+.pace-tile.is-ahead     .cal-status { color: var(--color-success); }
+.pace-tile.is-way-ahead .cal-hero,
+.pace-tile.is-way-ahead .cal-status { color: var(--color-warning); }
+
+.chart-bar.is-current {
+  fill: var(--color-text-muted);
+  opacity: 0.4;
+}
+
+/* ------------------------------------------------------------------
+   Weekend-day picker (settings)
+------------------------------------------------------------------ */
+
+.goal-weekend-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.goal-day-chip {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.goal-day-chip.is-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: white;
 }
 
 /* ------------------------------------------------------------------

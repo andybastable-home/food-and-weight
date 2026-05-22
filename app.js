@@ -56,6 +56,14 @@ const WEIGHT_AVG_WINDOW_DAYS = 7;
 const ACTIVITY_MULTIPLIER = 1.3;
 const WEIGHT_STALENESS_LIMIT_DAYS = 14;
 
+// Weekly goal — kcal/kg conversion + defaults
+const KCAL_PER_KG = 7700;
+const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DOW_MON_FIRST = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DEFAULT_WEEKLY_LOSS_GOAL_KG = 0.6;
+const DEFAULT_WEEKEND_RATIO = 0.5;
+const DEFAULT_WEEKEND_DAYS = ['Fri', 'Sat', 'Sun'];
+
 // Map Gemini's confidence labels to compact storage values.
 function mapConfidence(geminiConf) {
   switch ((geminiConf || '').toLowerCase()) {
@@ -199,6 +207,21 @@ function combineDayAndTime(day, timeStr) {
   const [hh, mm] = timeStr.split(':').map(Number);
   d.setHours(hh, mm, 0, 0);
   return d.getTime();
+}
+
+function startOfWeek(date) {
+  // ISO week: Monday is day 1.
+  const d = startOfDay(date);
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const offset = dow === 0 ? -6 : 1 - dow;
+  return addDays(d, offset);
+}
+
+function dowLabel(dateOrStr) {
+  const d = typeof dateOrStr === 'string'
+    ? new Date(dateOrStr + 'T12:00:00')
+    : new Date(dateOrStr);
+  return DOW_SHORT[d.getDay()];
 }
 
 const TIME_CATEGORIES = ['Breakfast', 'Morning', 'Lunch', 'Afternoon', 'Dinner', 'Evening'];
@@ -591,6 +614,37 @@ function matchFrequent(query) {
 }
 
 // ------------------------------------------------------------------
+// Weekly goal (settings, persisted to localStorage)
+// ------------------------------------------------------------------
+function getGoal() {
+  const kgRaw = localStorage.getItem('fw_goal_kg_per_week');
+  const ratioRaw = localStorage.getItem('fw_goal_weekend_ratio');
+  const daysRaw = localStorage.getItem('fw_goal_weekend_days');
+  const kg = parseFloat(kgRaw);
+  const ratio = parseFloat(ratioRaw);
+  const days = daysRaw
+    ? daysRaw.split(',').map(s => s.trim()).filter(Boolean)
+    : DEFAULT_WEEKEND_DAYS;
+  return {
+    weeklyKg: Number.isFinite(kg) ? kg : DEFAULT_WEEKLY_LOSS_GOAL_KG,
+    weekendRatio: Number.isFinite(ratio) ? ratio : DEFAULT_WEEKEND_RATIO,
+    weekendDays: new Set(days),
+  };
+}
+
+function setGoal({ weeklyKg, weekendRatio, weekendDays } = {}) {
+  if (weeklyKg != null && Number.isFinite(weeklyKg)) {
+    localStorage.setItem('fw_goal_kg_per_week', String(weeklyKg));
+  }
+  if (weekendRatio != null && Number.isFinite(weekendRatio)) {
+    localStorage.setItem('fw_goal_weekend_ratio', String(weekendRatio));
+  }
+  if (weekendDays != null) {
+    localStorage.setItem('fw_goal_weekend_days', Array.from(weekendDays).join(','));
+  }
+}
+
+// ------------------------------------------------------------------
 // Settings panel
 // ------------------------------------------------------------------
 function loadSettingsValues() {
@@ -608,6 +662,78 @@ function loadSettingsValues() {
   if (ageEl) ageEl.value = localStorage.getItem('fw_cal_age') || '';
   if (htEl) htEl.value = localStorage.getItem('fw_cal_height') || '';
   updateCalTargetPreview();
+
+  const goal = getGoal();
+  const kgEl = document.getElementById('cfg-goal-kg');
+  const ratioEl = document.getElementById('cfg-goal-weekend-ratio');
+  if (kgEl) kgEl.value = goal.weeklyKg;
+  if (ratioEl) ratioEl.value = goal.weekendRatio;
+  renderWeekendDayPicker(goal.weekendDays);
+  updateGoalPreview();
+}
+
+function renderWeekendDayPicker(selectedSet) {
+  const host = document.getElementById('cfg-goal-weekend-days');
+  if (!host) return;
+  host.replaceChildren();
+  for (const label of DOW_MON_FIRST) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'goal-day-chip' + (selectedSet.has(label) ? ' is-active' : '');
+    btn.dataset.day = label;
+    btn.textContent = label;
+    btn.setAttribute('aria-pressed', String(selectedSet.has(label)));
+    btn.addEventListener('click', () => {
+      const active = btn.classList.toggle('is-active');
+      btn.setAttribute('aria-pressed', String(active));
+      saveGoalFields();
+    });
+    host.appendChild(btn);
+  }
+}
+
+function readGoalFromForm() {
+  const kgEl = document.getElementById('cfg-goal-kg');
+  const ratioEl = document.getElementById('cfg-goal-weekend-ratio');
+  const host = document.getElementById('cfg-goal-weekend-days');
+  const kg = kgEl ? parseFloat(kgEl.value) : NaN;
+  const ratio = ratioEl ? parseFloat(ratioEl.value) : NaN;
+  const days = host
+    ? Array.from(host.querySelectorAll('.goal-day-chip.is-active')).map(b => b.dataset.day)
+    : Array.from(DEFAULT_WEEKEND_DAYS);
+  return {
+    weeklyKg: Number.isFinite(kg) ? kg : DEFAULT_WEEKLY_LOSS_GOAL_KG,
+    weekendRatio: Number.isFinite(ratio) ? ratio : DEFAULT_WEEKEND_RATIO,
+    weekendDays: new Set(days),
+  };
+}
+
+function saveGoalFields() {
+  setGoal(readGoalFromForm());
+  updateGoalPreview();
+}
+
+function updateGoalPreview() {
+  const preview = document.getElementById('cfg-goal-preview');
+  if (!preview) return;
+  const goal = readGoalFromForm();
+  if (!(goal.weeklyKg > 0)) {
+    preview.textContent = 'Set a goal above 0 to see your daily deficit budget.';
+    return;
+  }
+  const weeklyDeficit = goal.weeklyKg * KCAL_PER_KG;
+  const weekendCount = DOW_MON_FIRST.filter(d => goal.weekendDays.has(d)).length;
+  const weekdayCount = 7 - weekendCount;
+  const divisor = weekdayCount + goal.weekendRatio * weekendCount;
+  if (divisor <= 0) {
+    preview.textContent = 'Pick at least one weekday so the goal can be split.';
+    return;
+  }
+  const weekday = Math.round(weeklyDeficit / divisor);
+  const weekend = Math.round(weekday * goal.weekendRatio);
+  preview.textContent =
+    `Weekly deficit ${Math.round(weeklyDeficit).toLocaleString()} kcal · ` +
+    `weekday −${weekday.toLocaleString()} · weekend −${weekend.toLocaleString()}.`;
 }
 
 async function updateCalTargetPreview() {
@@ -706,6 +832,7 @@ function initSettingsPanel() {
     if (sexEl) localStorage.setItem('fw_cal_sex', sexEl.value);
     if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
     if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
+    saveGoalFields();
     overlay.classList.add('hidden');
     // Refresh totals in case the target changed
     if (currentTab === 'food' || currentTab === 'workout') refreshList();
@@ -744,6 +871,13 @@ function initSettingsPanel() {
   if (sexEl) sexEl.addEventListener('change', saveCalField);
   if (ageEl) ageEl.addEventListener('blur', saveCalField);
   if (htEl) htEl.addEventListener('blur', saveCalField);
+
+  const goalKgEl = document.getElementById('cfg-goal-kg');
+  const goalRatioEl = document.getElementById('cfg-goal-weekend-ratio');
+  if (goalKgEl) goalKgEl.addEventListener('blur', saveGoalFields);
+  if (goalKgEl) goalKgEl.addEventListener('input', updateGoalPreview);
+  if (goalRatioEl) goalRatioEl.addEventListener('blur', saveGoalFields);
+  if (goalRatioEl) goalRatioEl.addEventListener('input', updateGoalPreview);
 }
 
 // ------------------------------------------------------------------
@@ -1848,6 +1982,262 @@ function buildNetBalanceChart(days) {
   return fig;
 }
 
+// ------------------------------------------------------------------
+// Weekly goal: pace tile + weekly deficit chart
+// ------------------------------------------------------------------
+
+const WEEKLY_CHART_WEEKS = 10;
+
+// Group day records (from loadProgressRange) into ISO weeks (Mon..Sun).
+// Each week's `days` is always exactly 7 entries; days outside the fetched range
+// are padded as placeholders (targetKcal=null) so day-type counts stay correct.
+function groupDaysIntoWeeks(days, now) {
+  const byDate = new Map(days.map(d => [d.date, d]));
+  const weekStarts = new Set();
+  for (const day of days) {
+    const wkStart = startOfWeek(new Date(day.date + 'T12:00:00'));
+    weekStarts.add(wkStart.toISOString().slice(0, 10));
+  }
+  const currentWeekKey = startOfWeek(now).toISOString().slice(0, 10);
+  weekStarts.add(currentWeekKey);
+
+  const weeks = Array.from(weekStarts).map(key => {
+    const weekStart = new Date(key + 'T00:00:00');
+    const fullDays = [];
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(weekStart, i);
+      const dateStr = d.toISOString().slice(0, 10);
+      fullDays.push(byDate.get(dateStr) || {
+        date: dateStr, foodKcal: 0, workoutKcal: 0,
+        weight: null, weightAvg7: null, targetKcal: null,
+      });
+    }
+    return {
+      weekStart,
+      weekEnd: addDays(weekStart, 6),
+      days: fullDays,
+      isCurrent: key === currentWeekKey,
+    };
+  });
+  weeks.sort((a, b) => a.weekStart - b.weekStart);
+  return weeks;
+}
+
+// Sum of (target + workout - food) over days in a week (positive = deficit).
+// Days without targetKcal are skipped entirely.
+function weeklyNetDeficit(weekDays) {
+  let sum = 0;
+  let hasAny = false;
+  for (const d of weekDays) {
+    if (d.targetKcal == null) continue;
+    sum += d.targetKcal + d.workoutKcal - d.foodKcal;
+    hasAny = true;
+  }
+  return hasAny ? sum : null;
+}
+
+// Pace calculation for the current week.
+// Returns { actual, expected, ratio, state, weeklyDeficitGoal, dayIndex, weekDays }
+// or null if the goal/profile can't produce a meaningful number.
+function computeWeeklyPace(weekDays, goal, now) {
+  const weeklyDeficitGoal = goal.weeklyKg * KCAL_PER_KG;
+  if (!(weeklyDeficitGoal > 0)) return null;
+
+  // Day-type counts over the full Mon-Sun structure.
+  let weekendCount = 0, weekdayCount = 0;
+  for (const d of weekDays) {
+    if (goal.weekendDays.has(dowLabel(d.date))) weekendCount++;
+    else weekdayCount++;
+  }
+  const R = goal.weekendRatio;
+  const divisor = weekdayCount + R * weekendCount;
+  if (divisor <= 0) return null;
+  const dayDeficitWeekday = weeklyDeficitGoal / divisor;
+  const dayDeficitWeekend = dayDeficitWeekday * R;
+
+  let expected = 0, actual = 0;
+  let usableDays = 0;
+  for (const d of weekDays) {
+    const dayStart = new Date(d.date + 'T00:00:00');
+    if (now < dayStart) break;
+    const dayEndMs = endOfDay(dayStart).getTime();
+    let frac = 1;
+    if (now.getTime() <= dayEndMs) {
+      frac = Math.max(0, Math.min(1, (now.getTime() - dayStart.getTime()) / DAY_MS));
+    }
+    if (d.targetKcal == null) continue;
+    const isWe = goal.weekendDays.has(dowLabel(d.date));
+    const D_today = isWe ? dayDeficitWeekend : dayDeficitWeekday;
+    expected += D_today * frac;
+    // Target and "elapsed allowance" scale with time; food/workout are already actual.
+    actual += d.targetKcal * frac + d.workoutKcal - d.foodKcal;
+    usableDays++;
+  }
+  if (usableDays === 0 || expected <= 0) return null;
+
+  const ratio = actual / expected;
+  let state;
+  if (ratio < 0.85) state = 'behind';
+  else if (ratio <= 1.15) state = 'on_pace';
+  else if (ratio <= 1.5) state = 'ahead';
+  else state = 'way_ahead';
+
+  // 1..7, counts days that have started (including today partial)
+  const dayIndex = Math.min(7,
+    weekDays.filter(d => now >= new Date(d.date + 'T00:00:00')).length || 1);
+
+  return { actual, expected, ratio, state, weeklyDeficitGoal, dayIndex };
+}
+
+function buildPaceTile(pace) {
+  const tile = document.createElement('div');
+  tile.className = 'pace-tile is-' + pace.state.replace('_', '-');
+
+  // Ring fill: cap visual fill at 1.0 so the arc stays inside the ring.
+  const fill = Math.max(0, Math.min(1, pace.ratio));
+  const { wrap, inner } = buildCalRing(fill);
+
+  const hero = document.createElement('div');
+  hero.className = 'cal-hero';
+  hero.textContent = Math.round(pace.ratio * 100) + '%';
+  const unit = document.createElement('div');
+  unit.className = 'cal-hero-unit';
+  unit.textContent = 'of pace';
+  inner.append(hero, unit);
+
+  const text = document.createElement('div');
+  text.className = 'cal-text';
+  const status = document.createElement('div');
+  status.className = 'cal-status';
+  status.textContent = {
+    behind: 'Behind pace',
+    on_pace: 'On pace',
+    ahead: 'Ahead',
+    way_ahead: 'Way ahead',
+  }[pace.state];
+
+  const detail = document.createElement('div');
+  detail.className = 'cal-detail';
+  const actual = Math.round(pace.actual);
+  const expected = Math.round(pace.expected);
+  const diff = actual - expected;
+  const banked = Math.abs(diff);
+  detail.textContent = (() => {
+    if (pace.state === 'way_ahead') {
+      return `Banked ${banked.toLocaleString()} kcal — eat more, this isn't sustainable.`;
+    }
+    if (pace.state === 'ahead') {
+      return `Banked ${banked.toLocaleString()} kcal — room to spare.`;
+    }
+    if (pace.state === 'behind') {
+      return `Short ${banked.toLocaleString()} kcal · ${actual.toLocaleString()} of ${expected.toLocaleString()} expected.`;
+    }
+    return `${actual.toLocaleString()} of ${expected.toLocaleString()} kcal · day ${pace.dayIndex} of 7.`;
+  })();
+  text.append(status, detail);
+
+  tile.append(wrap, text);
+  return tile;
+}
+
+function buildPaceEmpty(reason) {
+  const tile = document.createElement('div');
+  tile.className = 'pace-tile is-muted';
+  const { wrap, inner } = buildCalRing(0);
+  const hero = document.createElement('div');
+  hero.className = 'cal-hero';
+  hero.textContent = '—';
+  inner.append(hero);
+  const text = document.createElement('div');
+  text.className = 'cal-text';
+  const status = document.createElement('div');
+  status.className = 'cal-status';
+  status.textContent = 'Weekly pace';
+  const detail = document.createElement('div');
+  detail.className = 'cal-detail';
+  detail.textContent = reason;
+  text.append(status, detail);
+  tile.append(wrap, text);
+  return tile;
+}
+
+function buildWeeklyDeficitChart(weeks, goal) {
+  const { fig, svg } = makeChartWrap('Weekly Deficit vs Goal (kcal)');
+  const weeklyDeficitGoal = goal.weeklyKg * KCAL_PER_KG;
+
+  const bars = weeks.map(w => ({
+    label: w.weekStart,
+    isCurrent: w.isCurrent,
+    deficit: weeklyNetDeficit(w.days),
+  }));
+  const vals = bars.map(b => b.deficit).filter(v => v != null);
+  if (!vals.length) {
+    const t = svgEl('text', { x: CHART_W / 2, y: CHART_H / 2, class: 'chart-empty', 'text-anchor': 'middle' });
+    t.textContent = 'Set your profile to see weekly deficits';
+    svg.appendChild(t);
+    return fig;
+  }
+
+  // Goal line is always positive (deficit). Y range covers actual data + goal + symmetric headroom.
+  const maxAbs = Math.max(
+    Math.abs(Math.min(...vals, 0)),
+    Math.abs(Math.max(...vals, weeklyDeficitGoal)),
+    weeklyDeficitGoal > 0 ? weeklyDeficitGoal * 1.2 : 1000,
+  );
+  const yMin = -maxAbs * 1.1;
+  const yMax = maxAbs * 1.15;
+  const zeroY = chartYPos(0, yMin, yMax);
+  const n = bars.length;
+  const bw = barWidth(n);
+
+  addChartGrid(svg, yMin, yMax);
+  svg.appendChild(svgEl('line', {
+    x1: CP.l, y1: zeroY.toFixed(1),
+    x2: CHART_W - CP.r, y2: zeroY.toFixed(1),
+    class: 'chart-zero-line',
+  }));
+
+  // Goal reference line (dashed).
+  if (weeklyDeficitGoal > 0) {
+    const goalY = chartYPos(weeklyDeficitGoal, yMin, yMax);
+    svg.appendChild(svgEl('line', {
+      x1: CP.l, y1: goalY.toFixed(1),
+      x2: CHART_W - CP.r, y2: goalY.toFixed(1),
+      class: 'chart-target-line',
+    }));
+  }
+
+  // X-axis labels: week-start dates, sparse so they fit.
+  const labelEvery = n <= 6 ? 1 : 2;
+  for (let i = 0; i < n; i++) {
+    if (i % labelEvery !== 0 && i !== n - 1) continue;
+    const x = barXPos(i, n) + bw / 2;
+    const lbl = svgEl('text', { x: x.toFixed(1), y: CHART_H - 4, class: 'chart-axis-label', 'text-anchor': 'middle' });
+    lbl.textContent = bars[i].label.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    svg.appendChild(lbl);
+  }
+
+  for (let i = 0; i < n; i++) {
+    const b = bars[i];
+    if (b.deficit == null) continue;
+    // Deficit positive = good (under target) -> render as a bar ABOVE zero in the chart
+    // (visually: bar height extends from zeroY upward toward the goal line).
+    const yVal = chartYPos(b.deficit, yMin, yMax);
+    const by = b.deficit > 0 ? yVal : zeroY;
+    const bh = Math.max(1, Math.abs(zeroY - yVal));
+    const klass = b.isCurrent
+      ? 'chart-bar is-current'
+      : 'chart-bar ' + (b.deficit >= 0 ? 'is-under' : 'is-over');
+    svg.appendChild(svgEl('rect', {
+      x: barXPos(i, n).toFixed(1), y: by.toFixed(1),
+      width: bw.toFixed(1), height: bh.toFixed(1),
+      rx: '2', class: klass,
+    }));
+  }
+
+  return fig;
+}
+
 let currentProgressRange = 30;
 
 async function renderProgress() {
@@ -1858,7 +2248,8 @@ async function renderProgress() {
   loading.textContent = 'Loading…';
   chartsEl.appendChild(loading);
 
-  const endDate = new Date();
+  const now = new Date();
+  const endDate = now;
   let startDate;
   if (currentProgressRange === 0) {
     const first = await db.entries.orderBy('timestamp').first();
@@ -1867,11 +2258,46 @@ async function renderProgress() {
     startDate = startOfDay(addDays(endDate, -(currentProgressRange - 1)));
   }
 
-  const { days } = await loadProgressRange(startDate, endDate);
+  // For the weekly deficit chart we want a stable look-back of ~10 weeks regardless of
+  // the user-selected range. Fetch the wider span if the active range is shorter.
+  const weeklyStart = startOfWeek(addDays(now, -(WEEKLY_CHART_WEEKS - 1) * 7));
+  const fetchStart = weeklyStart < startDate ? weeklyStart : startDate;
+
+  const { days } = await loadProgressRange(fetchStart, endDate);
   chartsEl.textContent = '';
-  chartsEl.appendChild(buildWeightChart(days));
-  chartsEl.appendChild(buildCaloriesChart(days));
-  chartsEl.appendChild(buildNetBalanceChart(days));
+
+  // Days inside the user-selected range only (for the top three charts).
+  const rangeStartTs = startOfDay(startDate).getTime();
+  const rangeDays = days.filter(d => new Date(d.date + 'T00:00:00').getTime() >= rangeStartTs);
+  chartsEl.appendChild(buildWeightChart(rangeDays));
+  chartsEl.appendChild(buildCaloriesChart(rangeDays));
+  chartsEl.appendChild(buildNetBalanceChart(rangeDays));
+
+  // Weekly goal section at the bottom — pace tile + weekly bars.
+  const goal = getGoal();
+  const weeks = groupDaysIntoWeeks(days, now);
+  const lastWeeks = weeks.slice(-WEEKLY_CHART_WEEKS);
+
+  const section = document.createElement('section');
+  section.className = 'pace-section';
+  const heading = document.createElement('h2');
+  heading.className = 'pace-section-title';
+  heading.textContent = 'Weekly Goal';
+  section.appendChild(heading);
+
+  const currentWeek = weeks.find(w => w.isCurrent);
+  if (!(goal.weeklyKg > 0)) {
+    section.appendChild(buildPaceEmpty('Set a goal in Settings to see your weekly pace.'));
+  } else if (!currentWeek) {
+    section.appendChild(buildPaceEmpty('No data this week yet.'));
+  } else {
+    const pace = computeWeeklyPace(currentWeek.days, goal, now);
+    section.appendChild(pace
+      ? buildPaceTile(pace)
+      : buildPaceEmpty('Set your profile so a maintenance target is available.'));
+  }
+  section.appendChild(buildWeeklyDeficitChart(lastWeeks, goal));
+  chartsEl.appendChild(section);
 }
 
 function initProgressPanel() {
