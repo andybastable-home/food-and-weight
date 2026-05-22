@@ -1988,6 +1988,35 @@ function buildNetBalanceChart(days) {
 
 const WEEKLY_CHART_WEEKS = 10;
 
+// Typical cumulative fraction of a day's food eaten by hour-of-day. Used to
+// scale today's partial-day contribution to the pace ring so pre-meal hours
+// don't look falsely banked. Linear interpolation between control points.
+// Curve aims to track Andy's eating: breakfast 8–10, lunch ~12–14, dinner ~17–21.
+const MEAL_CURVE_POINTS = [
+  [0,  0.0],
+  [4,  0.0],
+  [8,  0.05],
+  [10, 0.25],
+  [12, 0.30],
+  [14, 0.55],
+  [17, 0.65],
+  [21, 0.95],
+  [24, 1.0],
+];
+
+function mealCurveAt(hourOfDay) {
+  const h = Math.max(0, Math.min(24, hourOfDay));
+  for (let i = 1; i < MEAL_CURVE_POINTS.length; i++) {
+    const [h1, p1] = MEAL_CURVE_POINTS[i - 1];
+    const [h2, p2] = MEAL_CURVE_POINTS[i];
+    if (h <= h2) {
+      const t = h2 === h1 ? 0 : (h - h1) / (h2 - h1);
+      return p1 + t * (p2 - p1);
+    }
+  }
+  return 1;
+}
+
 // Group day records (from loadProgressRange) into ISO weeks (Mon..Sun).
 // Each week's `days` is always exactly 7 entries; days outside the fetched range
 // are padded as placeholders (targetKcal=null) so day-type counts stay correct.
@@ -2061,16 +2090,19 @@ function computeWeeklyPace(weekDays, goal, now) {
     const dayStart = new Date(d.date + 'T00:00:00');
     if (now < dayStart) break;
     const dayEndMs = endOfDay(dayStart).getTime();
-    let frac = 1;
+    // Use the meal curve (not linear time) so today's partial contribution scales
+    // with how much food a typical day has consumed by now, avoiding the
+    // false-banked signal in the pre-meal hours. Past days collapse to 1.
+    let mealFrac = 1;
     if (now.getTime() <= dayEndMs) {
-      frac = Math.max(0, Math.min(1, (now.getTime() - dayStart.getTime()) / DAY_MS));
+      const hoursIntoDay = (now.getTime() - dayStart.getTime()) / (60 * 60 * 1000);
+      mealFrac = mealCurveAt(hoursIntoDay);
     }
     if (d.targetKcal == null) continue;
     const isWe = goal.weekendDays.has(dowLabel(d.date));
     const D_today = isWe ? dayDeficitWeekend : dayDeficitWeekday;
-    expected += D_today * frac;
-    // Target and "elapsed allowance" scale with time; food/workout are already actual.
-    actual += d.targetKcal * frac + d.workoutKcal - d.foodKcal;
+    expected += D_today * mealFrac;
+    actual += d.targetKcal * mealFrac + d.workoutKcal - d.foodKcal;
     usableDays++;
   }
   if (usableDays === 0 || expected <= 0) return null;
