@@ -2319,9 +2319,11 @@ async function renderProgress() {
   // Days inside the user-selected range only (for the top three charts).
   const rangeStartTs = startOfDay(startDate).getTime();
   const rangeDays = days.filter(d => new Date(d.date + 'T00:00:00').getTime() >= rangeStartTs);
+  const todayStr = now.toISOString().slice(0, 10);
+  const completeDays = rangeDays.filter(d => d.date !== todayStr);
   chartsEl.appendChild(buildWeightChart(rangeDays));
   chartsEl.appendChild(buildCaloriesChart(rangeDays));
-  chartsEl.appendChild(buildNetBalanceChart(rangeDays));
+  chartsEl.appendChild(buildNetBalanceChart(completeDays));
 
   // Weekly goal section at the bottom — pace tile + weekly bars.
   const goal = getGoal();
