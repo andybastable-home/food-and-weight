@@ -1,5 +1,0 @@
-- [Project phase](project_phase.md) — current phase + what kind of work is in flight
-- [Constraints](project_constraints.md) — no paid subs; OAuth client ID is public-by-design
-- [Token budget](feedback_token_budget.md) — Pro-tier rules: no Playwright, no styles.css by default
-- [STATUS.md pointer](reference_status_md.md) — where the live brain lives
-- [Deploy](project_deploy.md) — GitHub Pages, no build step

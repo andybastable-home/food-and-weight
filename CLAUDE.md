@@ -40,9 +40,7 @@ styles.css         design tokens + styles (don't open unless task is visual)
 manifest.json      PWA manifest (don't touch without flagging)
 icons/, assets/    static assets
 .scripts/          export-context.ps1 (Gemini planner workflow)
-notes/             spike notes — safe to read on demand
-migration/         old new-PC scaffolding; ignore (pending cleanup)
-.playwright-mcp/, 0?-*.png   May-2026 spike artifacts; ignore
+notes/             design spikes — read when starting the matching phase
 ```
 
 ### Inside `app.js`
@@ -91,7 +89,6 @@ When you split a file, add a new top-level banner in `app.js`/`sync.js`, or chan
 This project runs on Claude Pro with hard usage limits. Be deliberate about context.
 
 - **No browser automation.** Playwright MCP is not installed and must not be re-introduced. UI verification is manual — describe what to check and Andy will run it in a browser and report back.
-- **Don't read the spike PNG screenshots** at the repo root (`01-*.png` … `07-*.png` if they exist) as images. They are May-2026 spike artifacts and irrelevant to current work.
 - **Don't read `styles.css` unless the task is visual styling.** It is ~14 KB of CSS that's irrelevant to sync/data work.
 - **Read `STATUS.md` once per session, not repeatedly.** It is the source of truth for current phase + next steps.
 - **Prefer Grep over reading whole files** when locating a symbol or string. Read the whole file only after you know which one matters.
