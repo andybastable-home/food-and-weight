@@ -1,12 +1,12 @@
 # Status
 
 ## Current phase
-**Phase 9 🚧 — Weekly Goal: pace tile + weekly deficit chart** (v0.15.2; coded, pending verification on phone).
+**Phase 9 🚧 — Weekly Goal: pace tile + weekly deficit chart** (v0.15.3; coded, pending verification on phone).
 
 New "Weekly Goal" section at the bottom of the Progress overlay. Pace tile (circular ring, four states: behind / on pace / ahead / way ahead) shows how the current Mon–Sun week's cumulative deficit compares to where it should be by now, given the day-type weighting (weekday vs weekend). Weekly Deficit chart below: ~10 weeks of bars vs the goal-rate reference line; current week visually muted to avoid being read as a complete week. Settings overlay grows a "Weekly Goal" section: kg/week loss goal, weekend ratio, weekend days. Defaults: 0.6 kg/wk, R = 0.5, Fri–Sun.
 
 ## Verification checklist (Phase 9)
-1. Version `v0.15.2` shown in brand header and footer.
+1. Version `v0.15.3` shown in brand header and footer.
 2. Settings → "Weekly Goal" section: kg/wk input, weekend ratio input, day chips (Mon–Sun). Editing any field updates the preview line ("weekday −X · weekend −Y"). Values persist across reload.
 3. Progress overlay scrolls to a new "Weekly Goal" section at the bottom (under the existing three charts).
 4. **Pace tile**: ring colour matches state. Centre shows percent of pace. Subtitle copy matches state — "Banked X kcal — eat more, this isn't sustainable" on way-ahead.
@@ -41,4 +41,4 @@ Stable UUIDs as sync identity, attach-existing-sheet UX, schema versioning (Meta
 
 ## Known follow-ups
 - No "last synced" indicator.
-- Service worker cache: `fw-shell-v0.15.2`.
+- Service worker cache: `fw-shell-v0.15.3`.

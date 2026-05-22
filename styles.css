@@ -1006,6 +1006,8 @@ body {
 
 .settings-panel {
   width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
   min-height: 100dvh;
   background: var(--color-bg);
   display: flex;

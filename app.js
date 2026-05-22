@@ -2062,16 +2062,21 @@ function groupDaysIntoWeeks(days, now) {
 }
 
 // Sum of (target + workout - food) over days in a week (positive = deficit).
-// Days without targetKcal are skipped entirely.
-function weeklyNetDeficit(weekDays) {
+// Days without targetKcal are skipped entirely. Returns { deficit, missingFoodDays }
+// where missingFoodDays counts target-known days that had zero food logged — a
+// heuristic for "I forgot to log that day" since a real fasted day is rare.
+function weeklyNetDeficitStats(weekDays) {
   let sum = 0;
-  let hasAny = false;
+  let usableDays = 0;
+  let missingFoodDays = 0;
   for (const d of weekDays) {
     if (d.targetKcal == null) continue;
     sum += d.targetKcal + d.workoutKcal - d.foodKcal;
-    hasAny = true;
+    usableDays++;
+    if (d.foodKcal === 0) missingFoodDays++;
   }
-  return hasAny ? sum : null;
+  if (usableDays === 0) return null;
+  return { deficit: sum, missingFoodDays };
 }
 
 // Pace calculation for the current week.
@@ -2206,11 +2211,15 @@ function buildWeeklyDeficitChart(weeks, goal) {
   const { fig, svg } = makeChartWrap('Weekly Deficit vs Goal (kcal)');
   const weeklyDeficitGoal = goal.weeklyKg * KCAL_PER_KG;
 
-  const bars = weeks.map(w => ({
-    label: w.weekStart,
-    isCurrent: w.isCurrent,
-    deficit: weeklyNetDeficit(w.days),
-  }));
+  const bars = weeks.map(w => {
+    const stats = weeklyNetDeficitStats(w.days);
+    // Past weeks with 2+ unlogged days are dropped — they show wildly inflated
+    // deficits because target credit applies even when food wasn't logged.
+    // The current week is always rendered (it's incomplete by definition).
+    let deficit = stats?.deficit ?? null;
+    if (stats && !w.isCurrent && stats.missingFoodDays >= 2) deficit = null;
+    return { label: w.weekStart, isCurrent: w.isCurrent, deficit };
+  });
   const vals = bars.map(b => b.deficit).filter(v => v != null);
   if (!vals.length) {
     const t = svgEl('text', { x: CHART_W / 2, y: CHART_H / 2, class: 'chart-empty', 'text-anchor': 'middle' });
