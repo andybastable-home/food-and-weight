@@ -27,6 +27,65 @@ Implications for every change:
 
 When verifying UI work, the canonical test is "open it on the Pixel 8a installed PWA," not "open it in desktop Chrome." Desktop Chrome DevTools device emulation is acceptable for fast iteration but is not the final check.
 
+## Code map
+
+Tiny vanilla web app — no build step. Five source files. Skim this before grepping; only read whole files when the map points you there.
+
+```
+index.html         single page; header, footer, all overlays (settings, progress, skip)
+app.js             ~2.4 kLOC — all UI, IndexedDB (Dexie), settings, charts
+sync.js            ~1.0 kLOC — Google Sheets OAuth + sync, schema migrations
+service-worker.js  network-first shell cache; bump CACHE_VERSION on every release
+styles.css         design tokens + styles (don't open unless task is visual)
+manifest.json      PWA manifest (don't touch without flagging)
+icons/, assets/    static assets
+.scripts/          export-context.ps1 (Gemini planner workflow)
+notes/             spike notes — safe to read on demand
+migration/         old new-PC scaffolding; ignore (pending cleanup)
+.playwright-mcp/, 0?-*.png   May-2026 spike artifacts; ignore
+```
+
+### Inside `app.js`
+
+Organized by `// ----` banner comments — grep the banner text to jump:
+
+| Section banner                              | What's there                                                                 |
+| ------------------------------------------- | ---------------------------------------------------------------------------- |
+| `Service worker`                            | SW registration                                                              |
+| `Database`                                  | Dexie schema v1→v3 + upgrades; `SHEET_SCHEMA_VERSION`; weekly-goal defaults  |
+| `Type config`                               | `TYPES` map: food / weight / waist / workout / skip_food / measurements      |
+| `Date / number helpers`                     | `startOfDay`, `addDays`, `getTimeCategory`, `TIME_CATEGORIES`, etc.          |
+| `State + DOM refs`                          | `currentDate`, `currentTab`, `els` (cached DOM lookups)                      |
+| `Data access`, `Actions`                    | Dexie reads/writes; `handleAdd`, `createSkipMarker`, `setDate`/`setTab`      |
+| `AI estimation`                             | Gemini calls for food + workout                                              |
+| `Frequent-items index`                      | uFuzzy local match for repeat foods (threshold 3, min query len 2)           |
+| `Weekly goal`                               | `getGoal` / `setGoal` (localStorage)                                         |
+| `Settings panel`                            | `initSettingsPanel`, goal preview, `computeMaintenanceTarget` (Mifflin × 1.3)|
+| `Rendering`                                 | `renderEntryForm`, `renderEntries`, `renderCalorieTotal`, `buildCalRing`     |
+| `Progress charts`                           | weight / calories / net-balance SVG charts; `CHART_W=360, CHART_H=190`       |
+| `Weekly goal: pace tile + weekly deficit chart` | meal-curve partial-day scaling; `buildPaceTile`; `buildWeeklyDeficitChart` |
+| `Init`                                      | `init()` (called at bottom of file)                                          |
+
+### Inside `sync.js`
+
+Top-of-file constants are the contract: `CLIENT_ID`, `SCOPE`, header arrays (`ENTRIES_HEADER_V{1,2,3}`), `ENTRIES_RANGE_*`, `DAILY_TARGETS_*`, `PROFILE_GOAL_RANGE` (`Metadata!A3:B8`) + `PROFILE_GOAL_KEY_TO_STORAGE`. Then OAuth (`ensureClient`/`requestToken`/`ensureFreshToken`), then per-tab ensurers (`ensureSheet`, `ensureAIContextSheet`, `ensureDailyTargetsSheet`), then schema migrations (`migrateSheetV1ToV2` … `V3ToV4`), then push/pull functions (`syncEntriesToSheet`, `pullEntriesFromSheet`, `pushProfileAndGoalToSheet`, …), then user actions (`actionConnect`/`actionRefresh`/`actionForget`) and `initOnLoad` at the bottom.
+
+Schema-version gating: `SHEET_SCHEMA_VERSION` is the version this build understands; if a sheet reports higher, `schemaCompatible = false` and all Entries reads/writes stall to avoid corrupting a forward-versioned sheet.
+
+### Data shape (quick reference)
+
+- **IndexedDB** `FoodAndWeight` / store `entries`, keyed `++id` with unique `uuid`. Entry shape: `{ uuid, type, timestamp, text?, value?, calories?, timeCategory?, effort?, rawInput?, aiSuggestedTitle?, aiSuggestedCalories?, calorieSource?, calorieConfidence?, syncedAt? }`. Skip-day rows use `type: 'skip_food'` with reason in `text`.
+- **Google Sheet — three tabs:**
+  - `Entries` (cols A–O, v3 header) — see `ENTRIES_HEADER_V3`.
+  - `Metadata` — `A1/B1` schema version, `A2/B2` back-dating convention, `A3:B8` profile + weekly goal, plus AI-context rows below.
+  - `DailyTargets` — `date, target_kcal, weight_avg_kg, window_days`. Maintenance kcal = Mifflin-St Jeor BMR × 1.3 from the 7-day trailing avg weight (the 7 calendar days strictly before the date).
+- **`localStorage`** — sheet/auth (`fw.spike.sheetId`, `fw.spike.sheetGid`, `fw.spike.email`); AI context (`fw_gemini_context`, `fw_gemini_fitness_context`); ready-flags (`fw.aiContext.ready`, `fw.dailyTargets.ready`); profile + goal (`fw_cal_sex`, `fw_cal_age`, `fw_cal_height`, `fw_goal_kg_per_week`, `fw_goal_weekend_ratio`, `fw_goal_weekend_days`).
+- **`sessionStorage`** — `fw.sync.token` (cached OAuth token across SW-triggered reloads).
+
+### Maintaining this map
+
+When you split a file, add a new top-level banner in `app.js`/`sync.js`, or change the storage shape, update this section. Don't add line numbers — they drift. Reference banners, function names, or constants instead.
+
 ## Working under a token budget
 
 This project runs on Claude Pro with hard usage limits. Be deliberate about context.
