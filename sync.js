@@ -23,10 +23,18 @@ const ENTRIES_HEADER_V3 = [
   'calorie_confidence',     // 'low' | 'med' | 'high' (only when source=gemini)
   'effort',                 // 'low' | 'med' | 'high' (workout entries only)
 ];
-// Column-letter range covering the v3 header — bump if columns are added.
-const ENTRIES_RANGE_ALL = 'Entries!A:O';
-const ENTRIES_RANGE_HEADER = 'Entries!A1:O1';
-const ENTRIES_ROW_RANGE = (rowNum) => `Entries!A${rowNum}:O${rowNum}`;
+// v5 adds Gemini's free-text reasoning so over/under-estimates can be reviewed
+// later (read the sheet, look for items whose ai_suggested_calories differs from
+// the final logged calories, and use ai_reasoning to spot which assumptions drove
+// the gap — those become candidate facts for the Personal Diet Profile).
+const ENTRIES_HEADER_V5 = [
+  ...ENTRIES_HEADER_V3,
+  'ai_reasoning',           // Gemini's brief explanation (only when source=gemini)
+];
+// Column-letter range covering the current header — bump when columns are added.
+const ENTRIES_RANGE_ALL = 'Entries!A:P';
+const ENTRIES_RANGE_HEADER = 'Entries!A1:P1';
+const ENTRIES_ROW_RANGE = (rowNum) => `Entries!A${rowNum}:P${rowNum}`;
 
 const DAILY_TARGETS_HEADER = ['date', 'target_kcal', 'weight_avg_kg', 'window_days'];
 const DAILY_TARGETS_RANGE_ALL = 'DailyTargets!A:D';
@@ -246,7 +254,7 @@ async function ensureSheet() {
   const sid = data.spreadsheetId;
   await apiCall(
     `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Entries!A1:append?valueInputOption=RAW`,
-    { method: 'POST', body: JSON.stringify({ values: [ENTRIES_HEADER_V3] }) }
+    { method: 'POST', body: JSON.stringify({ values: [ENTRIES_HEADER_V5] }) }
   );
   await apiCall(
     `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/AI_Context!A1:append?valueInputOption=RAW`,
@@ -661,6 +669,56 @@ async function migrateSheetV3ToV4() {
   return true;
 }
 
+// v4 → v5: extend the Entries header with a single new column P (ai_reasoning),
+// so future Gemini estimates can record their explanation alongside the
+// suggested calories. No per-row backfill — older rows simply have a blank cell.
+async function migrateSheetV4ToV5() {
+  const sheetId = getSheetId();
+  if (!sheetId) return false;
+
+  const headerRead = await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Entries!A1:P1`
+  );
+  const headerRow = headerRead.values?.[0] || [];
+  const isV5 = headersMatch(headerRow, ENTRIES_HEADER_V5);
+  const isV3Shape = headersMatch(headerRow, ENTRIES_HEADER_V3)
+    && (headerRow.length === ENTRIES_HEADER_V3.length || !headerRow[ENTRIES_HEADER_V3.length]);
+  if (!isV5 && !isV3Shape) {
+    throw new Error('Refusing to migrate: Entries header is neither v3 nor v5 shape');
+  }
+
+  if (!isV5) {
+    console.log('[sync] Migrating sheet v4→v5…');
+    // Single-cell write: extend header to include column P. Existing rows leave
+    // column P blank, which pullEntriesFromSheet reads as an empty aiReasoning.
+    await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Entries!P1?valueInputOption=RAW`,
+      { method: 'PUT', body: JSON.stringify({ values: [['ai_reasoning']] }) }
+    );
+  } else {
+    console.log('[sync] Sheet already at v5 shape — just bumping Metadata');
+  }
+
+  // Hardcode 5 (not SHEET_SCHEMA_VERSION) so that if a future migration ever
+  // chains after this one and is interrupted, the sheet's recorded version
+  // matches the actual on-disk shape, not the app's target.
+  await apiCall(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Metadata!A1:B2?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        values: [
+          ['schema_version', 5],
+          ['entry_conventions', ENTRY_CONVENTION_NOTE],
+        ],
+      }),
+    }
+  );
+
+  console.log('[sync] Sheet at v5');
+  return true;
+}
+
 // Per-session cache: iso-date string → 1-based row number in DailyTargets sheet.
 const dailyTargetsRowCache = new Map();
 
@@ -739,6 +797,7 @@ async function pullEntriesFromSheet() {
       await migrateSheetV1ToV2();
       await migrateSheetV2ToV3();
       await migrateSheetV3ToV4();
+      await migrateSheetV4ToV5();
     } else if (version > SHEET_SCHEMA_VERSION) {
       schemaCompatible = false;
       console.warn('[sync] Sheet schema v' + version + ' is newer than this app understands (v' + SHEET_SCHEMA_VERSION + '). Pull & push disabled.');
@@ -748,6 +807,7 @@ async function pullEntriesFromSheet() {
       if (version < 2) await migrateSheetV1ToV2();
       if (version < 3) await migrateSheetV2ToV3();
       if (version < 4) await migrateSheetV3ToV4();
+      if (version < 5) await migrateSheetV4ToV5();
     }
     schemaCompatible = true;
 
@@ -778,6 +838,7 @@ async function pullEntriesFromSheet() {
         calorieSource: row[12] || '',
         calorieConfidence: row[13] || '',
         effort: row[14] || '',
+        aiReasoning: row[15] || '',
         synced: true,
       };
       if (TYPES[type]?.inputKind === 'text') {
@@ -833,6 +894,7 @@ function entryToRow(e) {
     e.calorieSource || '',
     e.calorieConfidence || '',
     e.effort || '',
+    e.aiReasoning || '',
   ];
 }
 

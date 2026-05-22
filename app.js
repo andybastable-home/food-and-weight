@@ -50,7 +50,7 @@ db.version(3).stores({
 });
 
 // Sheet format version this build knows how to read/write.
-const SHEET_SCHEMA_VERSION = 4;
+const SHEET_SCHEMA_VERSION = 5;
 
 const WEIGHT_AVG_WINDOW_DAYS = 7;
 const ACTIVITY_MULTIPLIER = 1.3;
@@ -359,6 +359,7 @@ async function handleAdd(type, formData) {
         entry.aiSuggestedTitle = formData.aiSuggestedTitle || '';
         entry.aiSuggestedCalories = Number(formData.aiSuggestedCalories);
         entry.calorieConfidence = mapConfidence(formData.aiConfidence);
+        entry.aiReasoning = formData.aiReasoning || '';
         entry.calorieSource = 'gemini';
       } else if (formData.matchedTitle) {
         entry.aiSuggestedTitle = formData.matchedTitle;
@@ -1215,6 +1216,7 @@ function renderEntryForm() {
           caloriesInput.value = result.calories;
         }
         if (result.confidence) form.dataset.aiConfidence = result.confidence;
+        if (result.reasoning) form.dataset.aiReasoning = result.reasoning;
         const conf = result.confidence || 'Low';
         const cls = conf === 'Excellent' ? 'confidence-excellent'
           : conf === 'Moderate' ? 'confidence-moderate' : 'confidence-low';
@@ -1356,6 +1358,7 @@ function renderEntryForm() {
     if (form.dataset.aiSuggestedTitle) formData.aiSuggestedTitle = form.dataset.aiSuggestedTitle;
     if (form.dataset.aiSuggestedCalories) formData.aiSuggestedCalories = form.dataset.aiSuggestedCalories;
     if (form.dataset.aiConfidence) formData.aiConfidence = form.dataset.aiConfidence;
+    if (form.dataset.aiReasoning) formData.aiReasoning = form.dataset.aiReasoning;
     if (form.dataset.matchedTitle) formData.matchedTitle = form.dataset.matchedTitle;
     if (form.dataset.matchedCalories) formData.matchedCalories = form.dataset.matchedCalories;
     if (form.dataset.matchedConfidence) formData.matchedConfidence = form.dataset.matchedConfidence;
@@ -1522,6 +1525,7 @@ async function saveEntryUpdate(entry, newText, newCalories, aiResult) {
     updates.aiSuggestedTitle = aiResult.title || '';
     if (aiResult.calories != null) updates.aiSuggestedCalories = Number(aiResult.calories);
     updates.calorieConfidence = mapConfidence(aiResult.confidence);
+    updates.aiReasoning = aiResult.reasoning || '';
     updates.calorieSource = 'gemini';
   }
   await db.entries.update(entry.id, updates);
