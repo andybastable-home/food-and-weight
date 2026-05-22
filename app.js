@@ -711,6 +711,9 @@ function readGoalFromForm() {
 function saveGoalFields() {
   setGoal(readGoalFromForm());
   updateGoalPreview();
+  if (typeof pushProfileAndGoalToSheet === 'function') {
+    pushProfileAndGoalToSheet().catch(() => {});
+  }
 }
 
 function updateGoalPreview() {
@@ -833,6 +836,9 @@ function initSettingsPanel() {
     if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
     if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
     saveGoalFields();
+    if (typeof pushProfileAndGoalToSheet === 'function') {
+      pushProfileAndGoalToSheet().catch(() => {});
+    }
     overlay.classList.add('hidden');
     // Refresh totals in case the target changed
     if (currentTab === 'food' || currentTab === 'workout') refreshList();
@@ -866,6 +872,9 @@ function initSettingsPanel() {
     if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
     if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
     updateCalTargetPreview();
+    if (typeof pushProfileAndGoalToSheet === 'function') {
+      pushProfileAndGoalToSheet().catch(() => {});
+    }
   }
 
   if (sexEl) sexEl.addEventListener('change', saveCalField);

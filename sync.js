@@ -357,6 +357,60 @@ async function pullContextFromSheet() {
   }
 }
 
+// Profile (sex/age/height) and Weekly Goal (kg/wk, weekend ratio, weekend days)
+// live in Metadata!A3:B8 as key/value rows.
+const PROFILE_GOAL_RANGE = 'Metadata!A3:B8';
+const PROFILE_GOAL_KEY_TO_STORAGE = {
+  profile_sex: 'fw_cal_sex',
+  profile_age: 'fw_cal_age',
+  profile_height_cm: 'fw_cal_height',
+  goal_weekly_kg: 'fw_goal_kg_per_week',
+  goal_weekend_ratio: 'fw_goal_weekend_ratio',
+  goal_weekend_days: 'fw_goal_weekend_days',
+};
+
+async function pushProfileAndGoalToSheet() {
+  if (!getSheetId() || !tokenValid() || !schemaCompatible) return;
+  const values = Object.entries(PROFILE_GOAL_KEY_TO_STORAGE).map(([sheetKey, storageKey]) => [
+    sheetKey,
+    localStorage.getItem(storageKey) ?? '',
+  ]);
+  try {
+    await apiCall(
+      `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${PROFILE_GOAL_RANGE}?valueInputOption=RAW`,
+      { method: 'PUT', body: JSON.stringify({ values }) }
+    );
+    console.log('[sync] profile + goal pushed to sheet');
+  } catch (err) {
+    console.warn('[sync] pushProfileAndGoalToSheet failed:', err.message);
+  }
+}
+
+async function pullProfileAndGoalFromSheet() {
+  if (!getSheetId()) return;
+  try {
+    const data = await apiTryRead(
+      `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${PROFILE_GOAL_RANGE}`
+    );
+    const rows = data?.values ?? [];
+    if (!rows.length) return;
+    for (const row of rows) {
+      const [k, v] = row;
+      const storageKey = PROFILE_GOAL_KEY_TO_STORAGE[k];
+      if (!storageKey) continue;
+      if (v === undefined || v === '') continue;
+      localStorage.setItem(storageKey, String(v));
+    }
+    // Reflect into any open Settings inputs so the user sees the synced values.
+    if (typeof loadSettingsValues === 'function') {
+      try { loadSettingsValues(); } catch (_) { /* settings not yet open */ }
+    }
+    console.log('[sync] profile + goal pulled from sheet');
+  } catch (err) {
+    console.warn('[sync] pullProfileAndGoalFromSheet failed:', err.message);
+  }
+}
+
 // Returns the sheet's schema_version (number) or null if Metadata tab/cell missing.
 async function readSheetSchemaVersion(sheetId) {
   const data = await apiTryRead(
@@ -923,6 +977,7 @@ async function actionConnect() {
       await ensureAIContextSheet();
       await ensureDailyTargetsSheet();
       await pullContextFromSheet();
+      await pullProfileAndGoalFromSheet();
       const n = await pullEntriesFromSheet();
       renderSyncUI();
       syncUnsyncedEntries().catch(() => {});
@@ -936,9 +991,12 @@ async function actionConnect() {
       await ensureAIContextSheet();
       await ensureDailyTargetsSheet();
       await pullContextFromSheet();
+      await pullProfileAndGoalFromSheet();
       await pullEntriesFromSheet();
       renderSyncUI();
       syncUnsyncedEntries().catch(() => {});
+      // Push current profile/goal so a freshly created sheet has the values on first connect.
+      pushProfileAndGoalToSheet().catch(() => {});
       setSyncStatus('Connected.', 'ok');
     }
   } catch (err) {
@@ -952,6 +1010,8 @@ async function actionRefresh() {
   setSyncStatus('Refreshing…', 'info');
   try {
     await ensureFreshToken();
+    await pullContextFromSheet();
+    await pullProfileAndGoalFromSheet();
     const n = await pullEntriesFromSheet();
     setSyncStatus(`Refreshed ${n} entries.`, 'ok');
   } catch (err) {
@@ -1000,6 +1060,7 @@ function initOnLoad() {
     await ensureAIContextSheet();
     await ensureDailyTargetsSheet();
     await pullContextFromSheet();
+    await pullProfileAndGoalFromSheet();
     await pullEntriesFromSheet();
     renderSyncUI();
     syncUnsyncedEntries().catch(() => {});
