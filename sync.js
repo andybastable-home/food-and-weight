@@ -40,7 +40,7 @@ const DAILY_TARGETS_HEADER = ['date', 'target_kcal', 'weight_avg_kg', 'window_da
 const DAILY_TARGETS_RANGE_ALL = 'DailyTargets!A:D';
 const DAILY_TARGETS_RANGE_HEADER = 'DailyTargets!A1:D1';
 
-const ENTRY_CONVENTION_NOTE = 'time_category is canonical for meal/activity ordering; epoch/iso_date is moment-of-entry and may not match the real meal/activity time. Weight entries are AM-fasted by convention (time_category=Morning, timestamp=noon-of-day). A type=skip_food entry marks an intentional day-off from food logging; the reason is in column E (value) — treat the date as deliberately untracked, not missing. The DailyTargets tab records the per-day maintenance calorie target: Mifflin-St Jeor BMR × 1.3 (NEAT-adjusted sedentary baseline), computed from the 7-day trailing average weight (the 7 calendar days strictly before the target date). Logged activity entries are additional kcal on top of this target — do not double-count.';
+const ENTRY_CONVENTION_NOTE = 'time_category is canonical for meal/activity ordering; epoch/iso_date is moment-of-entry and may not match the real meal/activity time. Weight entries are AM-fasted by convention (time_category=Morning, timestamp=noon-of-day). A type=skip_food entry marks an intentional day-off from food logging; the reason is in column E (value) — treat the date as deliberately untracked, not missing. The DailyTargets tab records the per-day maintenance calorie target: Mifflin-St Jeor BMR × 1.2 (sedentary baseline), computed from the 7-day trailing average weight (the 7 calendar days strictly before the target date). Logged activity entries are additional kcal on top of this target — do not double-count.';
 
 let tokenClient = null;
 let accessToken = null;

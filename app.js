@@ -53,7 +53,9 @@ db.version(3).stores({
 const SHEET_SCHEMA_VERSION = 5;
 
 const WEIGHT_AVG_WINDOW_DAYS = 7;
-const ACTIVITY_MULTIPLIER = 1.3;
+// Sedentary baseline: logged activity is added on top, so the baseline must assume
+// no deliberate exercise (1.2). A higher factor would double-count logged activity.
+const ACTIVITY_MULTIPLIER = 1.2;
 const WEIGHT_STALENESS_LIMIT_DAYS = 14;
 
 // Weekly goal — kcal/kg conversion + defaults
@@ -751,7 +753,7 @@ async function updateCalTargetPreview() {
   const info = await computeMaintenanceTarget();
   const target = info?.targetKcal;
   if (target) {
-    preview.textContent = `Estimated maintenance: ${target} kcal/day (7-day weight average × 1.3 baseline activity; logged activity adds on top).`;
+    preview.textContent = `Estimated maintenance: ${target} kcal/day (7-day weight average × 1.2 sedentary baseline; logged activity adds on top).`;
   } else {
     preview.textContent = 'Set your profile fields above to see an estimated maintenance target.';
   }

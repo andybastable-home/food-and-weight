@@ -58,7 +58,7 @@ Organized by `// ----` banner comments — grep the banner text to jump:
 | `AI estimation`                             | Gemini calls for food + workout                                              |
 | `Frequent-items index`                      | uFuzzy local match for repeat foods (threshold 3, min query len 2)           |
 | `Weekly goal`                               | `getGoal` / `setGoal` (localStorage)                                         |
-| `Settings panel`                            | `initSettingsPanel`, goal preview, `computeMaintenanceTarget` (Mifflin × 1.3)|
+| `Settings panel`                            | `initSettingsPanel`, goal preview, `computeMaintenanceTarget` (Mifflin × 1.2)|
 | `Rendering`                                 | `renderEntryForm`, `renderEntries`, `renderCalorieTotal`, `buildCalRing`     |
 | `Progress charts`                           | weight / calories / net-balance SVG charts; `CHART_W=360, CHART_H=190`       |
 | `Weekly goal: pace tile + weekly deficit chart` | meal-curve partial-day scaling; `buildPaceTile`; `buildWeeklyDeficitChart` |
@@ -76,7 +76,7 @@ Schema-version gating: `SHEET_SCHEMA_VERSION` is the version this build understa
 - **Google Sheet — three tabs:**
   - `Entries` (cols A–P, v5 header) — see `ENTRIES_HEADER_V5`. Column P (`ai_reasoning`) holds Gemini's free-text explanation for review/calibration; blank on user-entered or pre-v5 rows.
   - `Metadata` — `A1/B1` schema version, `A2/B2` back-dating convention, `A3:B8` profile + weekly goal, plus AI-context rows below.
-  - `DailyTargets` — `date, target_kcal, weight_avg_kg, window_days`. Maintenance kcal = Mifflin-St Jeor BMR × 1.3 from the 7-day trailing avg weight (the 7 calendar days strictly before the date).
+  - `DailyTargets` — `date, target_kcal, weight_avg_kg, window_days`. Maintenance kcal = Mifflin-St Jeor BMR × 1.2 (sedentary baseline; logged activity adds on top) from the 7-day trailing avg weight (the 7 calendar days strictly before the date).
 - **`localStorage`** — sheet/auth (`fw.spike.sheetId`, `fw.spike.sheetGid`, `fw.spike.email`); AI context (`fw_gemini_context`, `fw_gemini_fitness_context`); ready-flags (`fw.aiContext.ready`, `fw.dailyTargets.ready`); profile + goal (`fw_cal_sex`, `fw_cal_age`, `fw_cal_height`, `fw_goal_kg_per_week`, `fw_goal_weekend_ratio`, `fw_goal_weekend_days`).
 - **`sessionStorage`** — `fw.sync.token` (cached OAuth token across SW-triggered reloads).
 
