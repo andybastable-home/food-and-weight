@@ -40,7 +40,7 @@ styles.css         design tokens + styles (don't open unless task is visual)
 manifest.json      PWA manifest (don't touch without flagging)
 icons/, assets/    static assets
 .scripts/          export-context.ps1 (Gemini planner workflow)
-notes/             design spikes — read when starting the matching phase
+notes/             design/auth learnings (e.g. auth-learnings.md) — read when relevant
 ```
 
 ### Inside `app.js`
@@ -106,7 +106,7 @@ This project runs on Claude Pro with hard usage limits. Be deliberate about cont
 
 **Bump the version with every commit.** This app is deployed as a PWA and version numbers are the primary way Andy confirms the correct build loaded on his phone during testing.
 
-- Version lives in three places — always bump all three in lockstep: `index.html` (brand-version span + footer span) and `service-worker.js` (`CACHE_VERSION`). Missing any one causes the display version and cached assets to diverge.
+- Version lives in two places — always bump both in lockstep: `index.html` (the footer version pill) and `service-worker.js` (`CACHE_VERSION`). Missing one makes the displayed version and cached assets diverge.
 - Use semver patch bumps (v0.5.1 → v0.5.2) for most changes; minor bumps (v0.5.x → v0.6.0) for significant feature milestones.
 
 ## Constraints
