@@ -107,7 +107,7 @@ body {
 /* phone frame */
 .phone {
   width: 412px; border-radius: 30px; padding: 16px;
-  background: var(--color-bg); border: 1px solid var(--color-border);
+  background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-border);
   box-shadow: 0 20px 60px rgba(20,30,50,0.18);
   display: flex; flex-direction: column; gap: var(--space-4);
 }
@@ -351,9 +351,11 @@ body {
 .c-grid { stroke: var(--color-border); stroke-width: 1; }
 .c-zero { stroke: var(--color-text-muted); stroke-width: 1; opacity: 0.6; }
 .c-axis { fill: var(--color-text-muted); font-size: 9px; font-family: var(--font); }
-.c-line { fill: none; stroke: var(--color-accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.c-area { fill: var(--color-accent); opacity: 0.08; }
-.c-dot { fill: var(--color-surface); stroke: var(--color-accent); stroke-width: 2; }
+/* raw daily weights = thin + faint; rolling 7-day trend = bold accent-strong */
+.c-line-raw { fill: none; stroke: var(--color-accent); stroke-width: 1.5; opacity: 0.6; stroke-linecap: round; stroke-linejoin: round; }
+.c-line-trend { fill: none; stroke: var(--color-accent-strong); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.c-area { fill: var(--color-accent); opacity: 0.07; }
+.c-dot { fill: var(--color-accent); stroke: var(--color-surface); stroke-width: 1.5; }
 .c-goal { stroke: var(--color-accent-strong); stroke-dasharray: 4 3; stroke-width: 1.5; opacity: 0.55; }
 .c-bar-under { fill: var(--color-success); opacity: 0.85; }
 .c-bar-over  { fill: var(--color-danger);  opacity: 0.85; }
@@ -497,9 +499,10 @@ body {
           <svg viewBox="0 0 360 180">
             <line class="c-grid" x1="34" y1="20" x2="350" y2="20"/><line class="c-grid" x1="34" y1="70" x2="350" y2="70"/><line class="c-grid" x1="34" y1="120" x2="350" y2="120"/>
             <text class="c-axis" x="28" y="23" text-anchor="end">86</text><text class="c-axis" x="28" y="73" text-anchor="end">83</text><text class="c-axis" x="28" y="123" text-anchor="end">80</text>
-            <polygon class="c-area" points="40,46 80,58 120,52 160,74 200,80 240,96 280,90 320,112 350,118 350,150 40,150"/>
-            <polyline class="c-line" points="40,46 80,58 120,52 160,74 200,80 240,96 280,90 320,112 350,118"/>
-            <circle class="c-dot" cx="40" cy="46" r="3"/><circle class="c-dot" cx="120" cy="52" r="3"/><circle class="c-dot" cx="200" cy="80" r="3"/><circle class="c-dot" cx="280" cy="90" r="3"/><circle class="c-dot" cx="350" cy="118" r="3"/>
+            <polygon class="c-area" points="40,48 120,60 200,78 280,96 350,114 350,150 40,150"/>
+            <polyline class="c-line-raw" points="40,44 70,56 100,50 130,66 160,58 190,84 220,72 250,92 280,86 310,104 340,110 350,116"/>
+            <polyline class="c-line-trend" points="40,48 120,60 200,78 280,96 350,114"/>
+            <circle class="c-dot" cx="40" cy="44" r="2.5"/><circle class="c-dot" cx="100" cy="50" r="2.5"/><circle class="c-dot" cx="160" cy="58" r="2.5"/><circle class="c-dot" cx="220" cy="72" r="2.5"/><circle class="c-dot" cx="280" cy="86" r="2.5"/><circle class="c-dot" cx="340" cy="110" r="2.5"/>
             <text class="c-axis" x="40" y="168">Apr 24</text><text class="c-axis" x="190" y="168" text-anchor="middle">May 9</text><text class="c-axis" x="350" y="168" text-anchor="end">May 23</text>
           </svg>
           <figcaption class="chart-label">Weight (kg)</figcaption>
@@ -679,9 +682,10 @@ body {
           <svg viewBox="0 0 360 180">
             <line class="c-grid" x1="34" y1="20" x2="350" y2="20"/><line class="c-grid" x1="34" y1="70" x2="350" y2="70"/><line class="c-grid" x1="34" y1="120" x2="350" y2="120"/>
             <text class="c-axis" x="28" y="23" text-anchor="end">86</text><text class="c-axis" x="28" y="73" text-anchor="end">83</text><text class="c-axis" x="28" y="123" text-anchor="end">80</text>
-            <polygon class="c-area" points="40,46 80,58 120,52 160,74 200,80 240,96 280,90 320,112 350,118 350,150 40,150"/>
-            <polyline class="c-line" points="40,46 80,58 120,52 160,74 200,80 240,96 280,90 320,112 350,118"/>
-            <circle class="c-dot" cx="40" cy="46" r="3"/><circle class="c-dot" cx="120" cy="52" r="3"/><circle class="c-dot" cx="200" cy="80" r="3"/><circle class="c-dot" cx="280" cy="90" r="3"/><circle class="c-dot" cx="350" cy="118" r="3"/>
+            <polygon class="c-area" points="40,48 120,60 200,78 280,96 350,114 350,150 40,150"/>
+            <polyline class="c-line-raw" points="40,44 70,56 100,50 130,66 160,58 190,84 220,72 250,92 280,86 310,104 340,110 350,116"/>
+            <polyline class="c-line-trend" points="40,48 120,60 200,78 280,96 350,114"/>
+            <circle class="c-dot" cx="40" cy="44" r="2.5"/><circle class="c-dot" cx="100" cy="50" r="2.5"/><circle class="c-dot" cx="160" cy="58" r="2.5"/><circle class="c-dot" cx="220" cy="72" r="2.5"/><circle class="c-dot" cx="280" cy="86" r="2.5"/><circle class="c-dot" cx="340" cy="110" r="2.5"/>
             <text class="c-axis" x="40" y="168">Apr 24</text><text class="c-axis" x="190" y="168" text-anchor="middle">May 9</text><text class="c-axis" x="350" y="168" text-anchor="end">May 23</text>
           </svg>
           <figcaption class="chart-label">Weight (kg)</figcaption>
