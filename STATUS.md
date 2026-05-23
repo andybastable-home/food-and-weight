@@ -1,15 +1,24 @@
 # Status
 
 ## Current phase
-**Quick fixes toward 1.0 — Phase A ✅, Phase B 🚧 awaiting review gate** (v0.17.0).
+**Quick fixes toward 1.0 — Phases A/B/C ✅ shipped** (v0.17.1). Awaiting on-device verification.
 
-Phase A ✅ (functional): Item 1 deficit/surplus wording + `is-near` "small" calmer-grey variant (±150 kcal); "target"→"maintenance" in detail line + no-profile hint. Item 2 swipe left/right to change day (handlers on `.container`, 60px / 1.5× horizontal threshold, guarded against future days + interactive controls). Item 3 `data-daytype` hook + placeholder CSS.
+Phase A ✅ (functional): Item 1 deficit/surplus wording + `is-near` "small" calmer-grey variant (±150 kcal); "target"→"maintenance". Item 2 swipe left/right to change day. Item 3 `data-daytype` hook.
 
-Phase B 🚧: scope expanded to a **full-app** visual pass (Andy's call). `notes/visual-preview.html` built — self-contained, light + dark, covering: day screen (header w/ chart+gear icons, day-type headers, tabs, real collapsed→expanded Food form, entries with combined pastel-wash + left-edge tint), Measurements tab, all 5 calorie-tile states, Progress charts overlay, Settings pane. (The "focus reveals pills" idea was dropped — it was a misread of the existing form, which already reveals all fields on "Log Food".) **Awaiting Andy's review/approval before any real style change.**
+Phase B ✅: full-app visual preview (`notes/visual-preview.html`) approved by Andy (light + dark), with two preview fixes applied (dark-mode pill text, weight rolling-trend line).
+
+Phase C ✅: approved styles ported into `styles.css`/`app.js`/`index.html`:
+- Day-nav: `::before` accent rail + `--color-today-tint`/`--color-yest-tint` tokens; CSS-only "Today" pip.
+- Entries: combined pastel wash + stronger same-hue 3px left edge (`.entry::before`); category headers restyled with trailing divider.
+- Calorie tile: ring stroke 9, hero 30px, status 20px lowercase (scoped to `.calories-total` so pace tile is untouched).
+- Tabs active shadow; primary button gradient + shadow.
+- Weight chart: area fill under the trend line (`.chart-area` + polygon in `buildWeightChart`).
+
+**Deliberately NOT changed:** net-balance chart orientation. The preview mocked deficit-up/surplus-down, but the live chart is surplus-up/deficit-down. Flipping it is a semantic change, not styling — left as-is pending an explicit decision (open question below).
 
 ## Next steps
-1. **REVIEW GATE:** Andy opens `notes/visual-preview.html` (light + dark) and approves / requests changes. Do not touch `styles.css`/`index.html` until then.
-2. **Phase C:** port approved styles into `styles.css`/`index.html`, finalize Item 3 colors, bump to v0.17.1, commit + push.
+1. **VERIFY (Pixel 8a):** confirm day-type rail/tint + Today pip (light + dark), entry left edges, calorie tile sizing/lowercase status, button gradient, weight-chart area fill; footer shows v0.17.1.
+2. **Open question:** flip the net-balance chart to deficit-up/surplus-down (as the preview mocked)? Decide before closing this out.
 
 ## Phase 10 ✅ — Store Gemini reasoning for review/calibration (v0.16.0)
 Gemini's `reasoning` persisted on the entry + synced to sheet column P (`ai_reasoning`); sheet schema v4→v5 via `migrateSheetV4ToV5`. Old/user-entered rows leave P blank.
@@ -41,4 +50,4 @@ Stable UUIDs as sync identity, attach-existing-sheet UX, schema versioning (Meta
 
 ## Known follow-ups
 - No "last synced" indicator.
-- Service worker cache: `fw-shell-v0.17.0`.
+- Service worker cache: `fw-shell-v0.17.1`.

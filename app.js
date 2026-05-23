@@ -1912,8 +1912,12 @@ function buildWeightChart(days) {
 
   const avgPts = pts.filter(p => p.a != null);
   if (avgPts.length >= 2) {
-    const polyPts = avgPts.map(p => `${chartXPos(p.i, days.length).toFixed(1)},${chartYPos(p.a, min, max).toFixed(1)}`).join(' ');
-    svg.appendChild(svgEl('polyline', { points: polyPts, class: 'chart-line chart-line-avg' }));
+    const xy = avgPts.map(p => `${chartXPos(p.i, days.length).toFixed(1)},${chartYPos(p.a, min, max).toFixed(1)}`);
+    const baseY = (CP.t + PH).toFixed(1);
+    const firstX = chartXPos(avgPts[0].i, days.length).toFixed(1);
+    const lastX = chartXPos(avgPts[avgPts.length - 1].i, days.length).toFixed(1);
+    svg.appendChild(svgEl('polygon', { points: `${firstX},${baseY} ${xy.join(' ')} ${lastX},${baseY}`, class: 'chart-area' }));
+    svg.appendChild(svgEl('polyline', { points: xy.join(' '), class: 'chart-line chart-line-avg' }));
   }
 
   const wPts = pts.filter(p => p.w != null);
