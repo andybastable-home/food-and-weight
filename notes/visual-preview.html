@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Food &amp; Weight — visual pass preview (v0.17.x)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Preview only: Fraunces pulled from Google Fonts so this file renders standalone.
+     The live app uses the bundled ./assets/fonts/fraunces-latin.woff2 — unchanged. -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+/* ==================================================================
+   PROPOSED VISUAL PASS — grounded in the existing token system,
+   elevated. Scoped to .theme-light / .theme-dark so both render at once.
+   These are the candidate values to port into styles.css in Phase C.
+   ================================================================== */
+
+.theme-light {
+  --color-bg: hsl(210 30% 98%);
+  --color-surface: hsl(0 0% 100%);
+  --color-surface-alt: hsl(210 25% 95%);
+  --color-text: hsl(220 18% 14%);
+  --color-text-muted: hsl(220 10% 45%);
+  --color-accent: hsl(205 80% 50%);
+  --color-accent-strong: hsl(210 75% 42%);
+  --color-accent-soft: hsl(205 85% 95%);
+  --color-border: hsl(220 14% 91%);
+  --color-shadow: hsl(220 30% 20% / 0.06);
+  --color-shadow-lg: hsl(220 30% 20% / 0.1);
+  --color-success: hsl(150 45% 42%);
+  --color-danger: hsl(2 62% 54%);
+  --color-breakfast: hsl(40 60% 94%);
+  --color-lunch: hsl(120 40% 94%);
+  --color-dinner: hsl(260 40% 94%);
+  /* NEW — day-type accents */
+  --color-today-tint: hsl(205 85% 96.5%);
+  --color-yest-tint: hsl(210 30% 97%);
+}
+
+.theme-dark {
+  --color-bg: hsl(215 25% 9%);
+  --color-surface: hsl(215 22% 13%);
+  --color-surface-alt: hsl(215 18% 17%);
+  --color-text: hsl(210 25% 96%);
+  --color-text-muted: hsl(215 10% 64%);
+  --color-accent: hsl(205 75% 62%);
+  --color-accent-strong: hsl(205 80% 72%);
+  --color-accent-soft: hsl(210 35% 18%);
+  --color-border: hsl(220 12% 20%);
+  --color-shadow: hsl(0 0% 0% / 0.3);
+  --color-shadow-lg: hsl(0 0% 0% / 0.45);
+  --color-success: hsl(150 50% 55%);
+  --color-danger: hsl(2 68% 64%);
+  --color-breakfast: hsl(40 30% 18%);
+  --color-lunch: hsl(120 20% 18%);
+  --color-dinner: hsl(260 20% 18%);
+  --color-today-tint: hsl(210 38% 16%);
+  --color-yest-tint: hsl(215 20% 14.5%);
+}
+
+:root {
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 20px; --radius-pill: 999px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+}
+
+/* ---- preview chrome (not part of the app) ---- */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: #e9edf2;
+  color: #1a2230;
+  padding: 32px 16px 80px;
+  line-height: 1.5;
+}
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 26px;
+  text-align: center;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+}
+.page-sub {
+  text-align: center;
+  color: #5a6678;
+  font-size: 14px;
+  margin: 0 0 36px;
+  max-width: 620px;
+  margin-inline: auto;
+}
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  justify-content: center;
+  align-items: flex-start;
+}
+.mode-col { display: flex; flex-direction: column; gap: 20px; }
+.mode-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #3a4456;
+}
+.theme-dark .mode-label { color: #3a4456; }
+.section-cap {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 4px 2px 0;
+}
+
+/* phone frame */
+.phone {
+  width: 412px;
+  border-radius: 30px;
+  padding: 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 20px 60px rgba(20,30,50,0.18);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.theme-dark.phone { box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+
+/* ==================================================================
+   APP STYLES (the actual proposed look)
+   ================================================================== */
+
+/* ---- app header ---- */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 8px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+.brand-mark {
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(145deg, var(--color-accent), var(--color-accent-strong));
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px hsl(205 80% 50% / 0.35);
+}
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+}
+.brand-version {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface-alt);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  margin-left: auto;
+}
+.settings-dot {
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  display: grid; place-items: center;
+}
+
+/* ---- DATE NAV (Item 3 finalized) ---- */
+.date-nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px var(--color-shadow);
+  overflow: hidden;
+}
+/* left accent rail via ::before so the box model never shifts */
+.date-nav::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: transparent;
+  transition: background 200ms ease;
+}
+.date-nav[data-daytype="today"] {
+  background: var(--color-today-tint);
+}
+.date-nav[data-daytype="today"]::before {
+  background: var(--color-accent);
+}
+.date-nav[data-daytype="yesterday"] {
+  background: var(--color-yest-tint);
+}
+.date-nav[data-daytype="yesterday"]::before {
+  background: color-mix(in srgb, var(--color-accent) 38%, transparent);
+}
+.date-nav[data-daytype="past"]::before {
+  background: var(--color-border);
+}
+
+.date-nav-btn {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border: none; background: transparent;
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+.date-nav-btn svg { width: 20px; height: 20px; }
+.date-nav-btn[aria-disabled="true"] { opacity: 0.32; }
+
+.date-nav-label { flex: 1; text-align: center; min-width: 0; }
+.date-nav-main {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--color-text);
+}
+.date-nav-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+/* a tiny "today" pip beside the label */
+.today-pip {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  margin-left: 7px;
+  vertical-align: 0.18em;
+}
+
+/* ---- TABS ---- */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px var(--color-shadow);
+}
+.tab {
+  font-size: 14px;
+  font-weight: 600;
+  padding: var(--space-3) var(--space-2);
+  border: none; background: transparent;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md);
+  min-height: 40px;
+  letter-spacing: -0.005em;
+}
+.tab.is-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+  box-shadow: 0 1px 2px var(--color-shadow);
+}
+
+/* ---- ENTRY FORM (compact mock) ---- */
+.entry-form {
+  display: flex; gap: var(--space-2);
+}
+.entry-input {
+  flex: 1;
+  font-size: 16px;
+  padding: 13px var(--space-4);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md);
+  min-height: 48px;
+  display: flex; align-items: center;
+  position: relative;
+}
+.entry-input .spark { position: absolute; right: 14px; opacity: 0.8; }
+
+/* ---- ENTRY LIST ---- */
+.category-header {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 var(--space-1);
+  display: flex; align-items: center; gap: 8px;
+}
+.category-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+.entry {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px var(--color-shadow);
+  margin-bottom: var(--space-2);
+  overflow: hidden;
+  position: relative;
+}
+/* meal-tint as a left edge instead of full wash — calmer, more legible */
+.entry::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+.entry.category-breakfast::before { background: hsl(40 70% 60%); }
+.entry.category-lunch::before { background: hsl(120 40% 55%); }
+.entry.category-dinner::before { background: hsl(260 45% 64%); }
+.entry-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  min-height: 56px;
+}
+.entry-text { flex: 1; color: var(--color-text); font-size: 16px; word-break: break-word; }
+.entry-calories {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+/* ==================================================================
+   CALORIE TILE — the hero. Refined ring + Fraunces hero number.
+   States drive color exactly like the real app classes.
+   ================================================================== */
+.calories-total {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px var(--color-shadow), 0 10px 30px var(--color-shadow);
+}
+.cal-ring { position: relative; flex-shrink: 0; width: 104px; height: 104px; }
+.cal-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.cal-ring-track { fill: none; stroke: var(--color-border); stroke-width: 9; }
+.cal-ring-fill {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.cal-ring-inner {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; line-height: 1;
+}
+.cal-hero {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  color: var(--color-text);
+}
+.cal-hero-unit {
+  margin-top: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.cal-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.cal-status {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+  color: var(--color-text);
+  text-transform: lowercase;
+}
+.cal-detail {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+/* state colors — order matters: is-near wins over under/over */
+.calories-total.is-under .cal-ring-fill { stroke: var(--color-success); }
+.calories-total.is-over  .cal-ring-fill { stroke: var(--color-danger); }
+.calories-total.is-muted .cal-ring-fill { stroke: var(--color-text-muted); }
+.calories-total.is-under .cal-hero,
+.calories-total.is-under .cal-status { color: var(--color-success); }
+.calories-total.is-over  .cal-hero,
+.calories-total.is-over  .cal-status { color: var(--color-danger); }
+.calories-total.is-near  .cal-ring-fill { stroke: var(--color-text-muted); }
+.calories-total.is-near  .cal-hero,
+.calories-total.is-near  .cal-status { color: var(--color-text-muted); }
+
+.tile-grid { display: flex; flex-direction: column; gap: var(--space-3); }
+.tile-state-cap {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: -4px;
+  padding-left: 2px;
+}
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Food &amp; Weight — visual pass</h1>
+<p class="page-sub">
+  Proposed refresh of the main day screen, shown in light and dark. Review before any change lands in
+  <code>styles.css</code>. Covers the day-type header treatment (Item 3), the deficit/surplus/small/over
+  states of the calorie tile (Item 1), tabs and the entry list. Phone frames are ~412px (Pixel&nbsp;8a portrait).
+</p>
+
+<div class="modes">
+
+  <!-- ===================== LIGHT ===================== -->
+  <div class="mode-col">
+    <div class="mode-label">Light</div>
+
+    <div class="theme-light phone">
+      <div class="app-header">
+        <div class="brand-mark"></div>
+        <span class="brand-name">Food &amp; Weight</span>
+        <span class="brand-version">v0.17.1</span>
+      </div>
+
+      <div class="section-cap">Day header — today / yesterday / historic</div>
+
+      <div class="date-nav" data-daytype="today">
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="date-nav-label">
+          <h1 class="date-nav-main">Today<span class="today-pip"></span></h1>
+          <p class="date-nav-sub">Sat, May 23</p>
+        </div>
+        <button class="date-nav-btn" aria-disabled="true"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+
+      <div class="date-nav" data-daytype="yesterday">
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="date-nav-label">
+          <h1 class="date-nav-main">Yesterday</h1>
+          <p class="date-nav-sub">Fri, May 22</p>
+        </div>
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+
+      <div class="date-nav" data-daytype="past">
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="date-nav-label">
+          <h1 class="date-nav-main">Tue, May 19</h1>
+        </div>
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+
+      <div class="section-cap">Tabs + entries</div>
+
+      <nav class="tabs">
+        <button class="tab is-active">Food</button>
+        <button class="tab">Activity</button>
+        <button class="tab">Measurements</button>
+      </nav>
+
+      <div class="entry-form">
+        <div class="entry-input">Add food…<span class="spark">&#10024;</span></div>
+      </div>
+
+      <div>
+        <div class="category-header">Breakfast</div>
+        <div class="entry category-breakfast"><div class="entry-row"><span class="entry-text">Porridge with banana &amp; honey</span><span class="entry-calories">320 kcal</span></div></div>
+        <div class="category-header">Lunch</div>
+        <div class="entry category-lunch"><div class="entry-row"><span class="entry-text">Chicken &amp; salad wrap</span><span class="entry-calories">480 kcal</span></div></div>
+        <div class="entry category-lunch"><div class="entry-row"><span class="entry-text">Apple</span><span class="entry-calories">95 kcal</span></div></div>
+      </div>
+    </div>
+
+    <div class="section-cap">Calorie tile — all states (light)</div>
+    <div class="theme-light phone tile-grid">
+
+      <div class="tile-state-cap">Deficit (clearly under)</div>
+      <div class="calories-total is-under">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="99.5"/></svg><div class="cal-ring-inner"><div class="cal-hero">800</div><div class="cal-hero-unit">left</div></div></div>
+        <div class="cal-text"><div class="cal-status">deficit</div><div class="cal-detail">eaten 1,400 &middot; maintenance 2,200</div></div>
+      </div>
+
+      <div class="tile-state-cap">Small deficit (within ±150)</div>
+      <div class="calories-total is-under is-near">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="12.4"/></svg><div class="cal-ring-inner"><div class="cal-hero">100</div><div class="cal-hero-unit">left</div></div></div>
+        <div class="cal-text"><div class="cal-status">small deficit</div><div class="cal-detail">eaten 2,100 &middot; maintenance 2,200</div></div>
+      </div>
+
+      <div class="tile-state-cap">Small surplus (within ±150)</div>
+      <div class="calories-total is-over is-near">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg><div class="cal-ring-inner"><div class="cal-hero">100</div><div class="cal-hero-unit">over</div></div></div>
+        <div class="cal-text"><div class="cal-status">small surplus</div><div class="cal-detail">eaten 2,300 &middot; maintenance 2,200</div></div>
+      </div>
+
+      <div class="tile-state-cap">Surplus (clearly over)</div>
+      <div class="calories-total is-over">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg><div class="cal-ring-inner"><div class="cal-hero">500</div><div class="cal-hero-unit">over</div></div></div>
+        <div class="cal-text"><div class="cal-status">surplus</div><div class="cal-detail">eaten 2,700 &middot; maintenance 2,200 (+300 activity)</div></div>
+      </div>
+
+      <div class="tile-state-cap">No maintenance estimate set</div>
+      <div class="calories-total is-muted">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="276.46"/></svg><div class="cal-ring-inner"><div class="cal-hero">1,850</div><div class="cal-hero-unit">kcal</div></div></div>
+        <div class="cal-text"><div class="cal-status">eaten today</div><div class="cal-detail">Set weight &amp; profile for a maintenance estimate</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================== DARK ===================== -->
+  <div class="mode-col">
+    <div class="mode-label">Dark</div>
+
+    <div class="theme-dark phone">
+      <div class="app-header">
+        <div class="brand-mark"></div>
+        <span class="brand-name">Food &amp; Weight</span>
+        <span class="brand-version">v0.17.1</span>
+      </div>
+
+      <div class="section-cap">Day header — today / yesterday / historic</div>
+
+      <div class="date-nav" data-daytype="today">
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="date-nav-label">
+          <h1 class="date-nav-main">Today<span class="today-pip"></span></h1>
+          <p class="date-nav-sub">Sat, May 23</p>
+        </div>
+        <button class="date-nav-btn" aria-disabled="true"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+
+      <div class="date-nav" data-daytype="yesterday">
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="date-nav-label">
+          <h1 class="date-nav-main">Yesterday</h1>
+          <p class="date-nav-sub">Fri, May 22</p>
+        </div>
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+
+      <div class="date-nav" data-daytype="past">
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="date-nav-label">
+          <h1 class="date-nav-main">Tue, May 19</h1>
+        </div>
+        <button class="date-nav-btn"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+
+      <div class="section-cap">Tabs + entries</div>
+
+      <nav class="tabs">
+        <button class="tab is-active">Food</button>
+        <button class="tab">Activity</button>
+        <button class="tab">Measurements</button>
+      </nav>
+
+      <div class="entry-form">
+        <div class="entry-input">Add food…<span class="spark">&#10024;</span></div>
+      </div>
+
+      <div>
+        <div class="category-header">Breakfast</div>
+        <div class="entry category-breakfast"><div class="entry-row"><span class="entry-text">Porridge with banana &amp; honey</span><span class="entry-calories">320 kcal</span></div></div>
+        <div class="category-header">Lunch</div>
+        <div class="entry category-lunch"><div class="entry-row"><span class="entry-text">Chicken &amp; salad wrap</span><span class="entry-calories">480 kcal</span></div></div>
+        <div class="entry category-lunch"><div class="entry-row"><span class="entry-text">Apple</span><span class="entry-calories">95 kcal</span></div></div>
+      </div>
+    </div>
+
+    <div class="section-cap">Calorie tile — all states (dark)</div>
+    <div class="theme-dark phone tile-grid">
+
+      <div class="tile-state-cap">Deficit (clearly under)</div>
+      <div class="calories-total is-under">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="99.5"/></svg><div class="cal-ring-inner"><div class="cal-hero">800</div><div class="cal-hero-unit">left</div></div></div>
+        <div class="cal-text"><div class="cal-status">deficit</div><div class="cal-detail">eaten 1,400 &middot; maintenance 2,200</div></div>
+      </div>
+
+      <div class="tile-state-cap">Small deficit (within ±150)</div>
+      <div class="calories-total is-under is-near">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="12.4"/></svg><div class="cal-ring-inner"><div class="cal-hero">100</div><div class="cal-hero-unit">left</div></div></div>
+        <div class="cal-text"><div class="cal-status">small deficit</div><div class="cal-detail">eaten 2,100 &middot; maintenance 2,200</div></div>
+      </div>
+
+      <div class="tile-state-cap">Small surplus (within ±150)</div>
+      <div class="calories-total is-over is-near">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg><div class="cal-ring-inner"><div class="cal-hero">100</div><div class="cal-hero-unit">over</div></div></div>
+        <div class="cal-text"><div class="cal-status">small surplus</div><div class="cal-detail">eaten 2,300 &middot; maintenance 2,200</div></div>
+      </div>
+
+      <div class="tile-state-cap">Surplus (clearly over)</div>
+      <div class="calories-total is-over">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg><div class="cal-ring-inner"><div class="cal-hero">500</div><div class="cal-hero-unit">over</div></div></div>
+        <div class="cal-text"><div class="cal-status">surplus</div><div class="cal-detail">eaten 2,700 &middot; maintenance 2,200 (+300 activity)</div></div>
+      </div>
+
+      <div class="tile-state-cap">No maintenance estimate set</div>
+      <div class="calories-total is-muted">
+        <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="276.46"/></svg><div class="cal-ring-inner"><div class="cal-hero">1,850</div><div class="cal-hero-unit">kcal</div></div></div>
+        <div class="cal-text"><div class="cal-status">eaten today</div><div class="cal-detail">Set weight &amp; profile for a maintenance estimate</div></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

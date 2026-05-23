@@ -1,14 +1,15 @@
 # Status
 
 ## Current phase
-**Quick fixes toward 1.0 — Phase A ✅ (functional), Phase B pending model switch** (v0.17.0).
+**Quick fixes toward 1.0 — Phase A ✅, Phase B 🚧 awaiting review gate** (v0.17.0).
 
-Phase A done (functional, mechanical edits): Item 1 deficit/surplus wording + `is-near` "small deficit/surplus" calmer-grey variant (±150 kcal); detail line + no-profile hint reworded "target"→"maintenance". Item 2 swipe left/right to change day (touch handlers on `.container`, 60px / 1.5× horizontal-dominance threshold, guarded against future days + interactive controls). Item 3 `data-daytype` hook on `.date-nav` + placeholder accent-bar/tint CSS (final colors land in Phase C).
+Phase A ✅ (functional): Item 1 deficit/surplus wording + `is-near` "small" calmer-grey variant (±150 kcal); "target"→"maintenance" in detail line + no-profile hint. Item 2 swipe left/right to change day (handlers on `.container`, 60px / 1.5× horizontal threshold, guarded against future days + interactive controls). Item 3 `data-daytype` hook + placeholder CSS.
+
+Phase B 🚧: `notes/visual-preview.html` built — self-contained, light + dark, shows the day-type header treatment (today/yesterday/past), tabs, entry list, and all 5 calorie-tile states. **Awaiting Andy's review/approval before any real style change.**
 
 ## Next steps
-1. **STOP — model switch.** Andy switches to full Opus before Phase B (visual design).
-2. **Phase B (Opus):** build `notes/visual-preview.html` via frontend-design skill (whole main screen — header incl. day-type treatment, tabs, entry list, calorie tile incl. deficit/small/surplus/no-target states; light + dark). **Wait for Andy's review/approval before touching real styles.**
-3. **Phase C:** port approved styles into `styles.css`/`index.html`, finalize Item 3 colors, bump to v0.17.1, commit + push.
+1. **REVIEW GATE:** Andy opens `notes/visual-preview.html` (light + dark) and approves / requests changes. Do not touch `styles.css`/`index.html` until then.
+2. **Phase C:** port approved styles into `styles.css`/`index.html`, finalize Item 3 colors, bump to v0.17.1, commit + push.
 
 ## Phase 10 ✅ — Store Gemini reasoning for review/calibration (v0.16.0)
 Gemini's `reasoning` persisted on the entry + synced to sheet column P (`ai_reasoning`); sheet schema v4→v5 via `migrateSheetV4ToV5`. Old/user-entered rows leave P blank.
