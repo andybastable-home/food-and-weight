@@ -1,17 +1,17 @@
 # Status
 
 ## Current phase
-**Phase 10 🚧 — Store Gemini reasoning for review/calibration** (v0.16.0; coded, pending verification on phone).
+**Quick fixes toward 1.0 — Phase A ✅ (functional), Phase B pending model switch** (v0.17.0).
 
-Gemini's `reasoning` field (already returned in every estimate response, previously thrown away after showing in the form) is now persisted on the entry and synced to the sheet as a new column P (`ai_reasoning`). Sheet schema bumps v4 → v5. New `migrateSheetV4ToV5` appends the column; old rows are left blank. The point: periodically review the sheet for items whose final logged calories diverge from `ai_suggested_calories`, and use `ai_reasoning` to spot which assumptions to encode as personal facts.
+Phase A done (functional, mechanical edits): Item 1 deficit/surplus wording + `is-near` "small deficit/surplus" calmer-grey variant (±150 kcal); detail line + no-profile hint reworded "target"→"maintenance". Item 2 swipe left/right to change day (touch handlers on `.container`, 60px / 1.5× horizontal-dominance threshold, guarded against future days + interactive controls). Item 3 `data-daytype` hook on `.date-nav` + placeholder accent-bar/tint CSS (final colors land in Phase C).
 
-## Verification checklist (Phase 10)
-1. Version `v0.16.0` shown in brand header and footer.
-2. Add a food entry via ✨ (e.g. "two slices of toast with butter"). Open the sheet → newest row → column P should contain Gemini's reasoning text.
-3. Add a user-entered food entry (no ✨). Column P should be blank on that row.
-4. Retro-estimate an old entry (long-press → ✨). Column P should populate on that row.
-5. Open the sheet → Metadata!B1 reads `5`.
-6. Pull a v4 sheet on a fresh device: `[sync] Migrating sheet v4→v5…` in the console, then `[sync] Sheet at v5`. Entries tab gains the new header cell P1=`ai_reasoning`; older rows leave P blank.
+## Next steps
+1. **STOP — model switch.** Andy switches to full Opus before Phase B (visual design).
+2. **Phase B (Opus):** build `notes/visual-preview.html` via frontend-design skill (whole main screen — header incl. day-type treatment, tabs, entry list, calorie tile incl. deficit/small/surplus/no-target states; light + dark). **Wait for Andy's review/approval before touching real styles.**
+3. **Phase C:** port approved styles into `styles.css`/`index.html`, finalize Item 3 colors, bump to v0.17.1, commit + push.
+
+## Phase 10 ✅ — Store Gemini reasoning for review/calibration (v0.16.0)
+Gemini's `reasoning` persisted on the entry + synced to sheet column P (`ai_reasoning`); sheet schema v4→v5 via `migrateSheetV4ToV5`. Old/user-entered rows leave P blank.
 
 ## Phase 9 ✅ — Weekly Goal: pace tile + weekly deficit chart (v0.15.0–v0.15.4)
 
@@ -40,4 +40,4 @@ Stable UUIDs as sync identity, attach-existing-sheet UX, schema versioning (Meta
 
 ## Known follow-ups
 - No "last synced" indicator.
-- Service worker cache: `fw-shell-v0.16.0`.
+- Service worker cache: `fw-shell-v0.17.0`.

@@ -217,6 +217,20 @@ body {
   box-shadow: 0 1px 3px var(--color-shadow);
 }
 
+/* Day-type differentiation (Item 3) — placeholder values, finalized in the visual pass.
+   Inset left accent bar composed with the existing shadow + a soft tint; no box-model change. */
+.date-nav[data-daytype="today"] {
+  background: var(--color-accent-soft);
+  box-shadow: inset 4px 0 0 var(--color-accent), 0 1px 3px var(--color-shadow);
+}
+.date-nav[data-daytype="yesterday"] {
+  background: color-mix(in srgb, var(--color-accent-soft) 50%, var(--color-surface));
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--color-accent) 45%, transparent), 0 1px 3px var(--color-shadow);
+}
+.date-nav[data-daytype="past"] {
+  /* unchanged neutral surface */
+}
+
 .date-nav-btn {
   display: inline-flex;
   align-items: center;
@@ -768,6 +782,7 @@ body {
 .calories-total.is-under .cal-ring-fill { stroke: var(--color-success); }
 .calories-total.is-over  .cal-ring-fill { stroke: var(--color-danger); }
 .calories-total.is-muted .cal-ring-fill { stroke: var(--color-text-muted); }
+.calories-total.is-near  .cal-ring-fill { stroke: var(--color-text-muted); }
 
 .cal-ring-inner {
   position: absolute;
@@ -793,6 +808,7 @@ body {
 
 .calories-total.is-under .cal-hero { color: var(--color-success); }
 .calories-total.is-over  .cal-hero { color: var(--color-danger); }
+.calories-total.is-near  .cal-hero { color: var(--color-text-muted); }
 
 .cal-hero-unit {
   margin-top: 4px;
@@ -823,6 +839,7 @@ body {
 
 .calories-total.is-under .cal-status { color: var(--color-success); }
 .calories-total.is-over  .cal-status { color: var(--color-danger); }
+.calories-total.is-near  .cal-status { color: var(--color-text-muted); }
 
 .cal-detail {
   font-size: 13px;

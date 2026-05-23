@@ -134,6 +134,9 @@ const TYPES = {
 // ------------------------------------------------------------------
 const DAY_MS = 86400000;
 
+// Within ±this many kcal of maintenance, a deficit/surplus is "small" (calmer styling).
+const SMALL_DELTA_KCAL = 150;
+
 function startOfDay(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -179,9 +182,9 @@ function formatDateLabel(date) {
   const target = startOfDay(date);
   const diffDays = Math.round((today - target) / DAY_MS);
   const full = formatFullDate(date);
-  if (diffDays === 0) return { main: 'Today', sub: full };
-  if (diffDays === 1) return { main: 'Yesterday', sub: full };
-  return { main: full, sub: '' };
+  if (diffDays === 0) return { main: 'Today', sub: full, kind: 'today' };
+  if (diffDays === 1) return { main: 'Yesterday', sub: full, kind: 'yesterday' };
+  return { main: full, sub: '', kind: 'past' };
 }
 
 function formatNumber(n) {
@@ -260,6 +263,8 @@ let skipMarker = null;
 let longPressAttached = false;
 
 const els = {
+  main: document.querySelector('.container'),
+  dateNav: document.querySelector('.date-nav'),
   dateLabel: document.getElementById('date-label'),
   dateSub: document.getElementById('date-sub'),
   prevBtn: document.getElementById('prev-day'),
@@ -939,10 +944,11 @@ function openSkipPrompt() {
 }
 
 function renderDateNav() {
-  const { main, sub } = formatDateLabel(currentDate);
+  const { main, sub, kind } = formatDateLabel(currentDate);
   els.dateLabel.textContent = main;
   els.dateSub.textContent = sub;
   els.dateSub.hidden = !sub;
+  if (els.dateNav) els.dateNav.dataset.daytype = kind;
 
   const onToday = isSameDay(currentDate, new Date());
   els.nextBtn.disabled = onToday;
@@ -1657,7 +1663,7 @@ function buildCalRing(progress) {
 
 function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
   els.calTotal.replaceChildren();
-  els.calTotal.classList.remove('is-under', 'is-over', 'is-muted');
+  els.calTotal.classList.remove('is-under', 'is-over', 'is-muted', 'is-near');
 
   if (!target) {
     els.calTotal.classList.add('is-muted');
@@ -1677,7 +1683,7 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
     status.textContent = 'eaten today';
     const hint = document.createElement('div');
     hint.className = 'cal-detail';
-    hint.textContent = 'Set weight & profile for a target';
+    hint.textContent = 'Set weight & profile for a maintenance estimate';
     text.append(status, hint);
 
     els.calTotal.append(wrap, text);
@@ -1687,7 +1693,9 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
   const finalTarget = target + workoutTotal;
   const remaining = finalTarget - foodTotal;
   const isUnder = remaining >= 0;
+  const isNear = Math.abs(remaining) <= SMALL_DELTA_KCAL;
   els.calTotal.classList.add(isUnder ? 'is-under' : 'is-over');
+  if (isNear) els.calTotal.classList.add('is-near');
 
   const progress = finalTarget > 0 ? foodTotal / finalTarget : 0;
   const { wrap, inner } = buildCalRing(progress);
@@ -1704,11 +1712,13 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
   text.className = 'cal-text';
   const status = document.createElement('div');
   status.className = 'cal-status';
-  status.textContent = isUnder ? 'under target' : 'over target';
+  status.textContent = isUnder
+    ? (isNear ? 'small deficit' : 'deficit')
+    : (isNear ? 'small surplus' : 'surplus');
   const detail = document.createElement('div');
   detail.className = 'cal-detail';
   const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} activity)` : '';
-  detail.textContent = `eaten ${foodTotal.toLocaleString()} · target ${target.toLocaleString()}${workoutPart}`;
+  detail.textContent = `eaten ${foodTotal.toLocaleString()} · maintenance ${target.toLocaleString()}${workoutPart}`;
   text.append(status, detail);
 
   els.calTotal.append(wrap, text);
@@ -2406,6 +2416,28 @@ function init() {
     if (isSameDay(currentDate, new Date())) return;
     setDate(addDays(currentDate, 1));
   });
+
+  // Swipe left/right on the day surface to change day. Don't preventDefault so
+  // native vertical scrolling stays intact; only horizontal-dominant swipes count.
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+  els.main.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    swipeStartX = t.clientX;
+    swipeStartY = t.clientY;
+  }, { passive: true });
+  els.main.addEventListener('touchend', (e) => {
+    if (e.target.closest('input, textarea, select, button, .tabs')) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipeStartX;
+    const dy = t.clientY - swipeStartY;
+    if (Math.abs(dx) <= 60 || Math.abs(dx) <= Math.abs(dy) * 1.5) return;
+    if (dx > 0) {
+      setDate(addDays(currentDate, -1));
+    } else if (!isSameDay(currentDate, new Date())) {
+      setDate(addDays(currentDate, 1));
+    }
+  }, { passive: true });
   initSettingsPanel();
   initProgressPanel();
   initSkipOverlay();
