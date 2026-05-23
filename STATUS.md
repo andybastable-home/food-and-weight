@@ -5,7 +5,7 @@
 
 Phase A ✅ (functional): Item 1 deficit/surplus wording + `is-near` "small" calmer-grey variant (±150 kcal); "target"→"maintenance" in detail line + no-profile hint. Item 2 swipe left/right to change day (handlers on `.container`, 60px / 1.5× horizontal threshold, guarded against future days + interactive controls). Item 3 `data-daytype` hook + placeholder CSS.
 
-Phase B 🚧: `notes/visual-preview.html` built — self-contained, light + dark, shows the day-type header treatment (today/yesterday/past), tabs, entry list, and all 5 calorie-tile states. **Awaiting Andy's review/approval before any real style change.**
+Phase B 🚧: scope expanded to a **full-app** visual pass (Andy's call). `notes/visual-preview.html` built — self-contained, light + dark, covering: day screen (header w/ chart+gear icons, day-type headers, tabs, real collapsed→expanded Food form, entries with combined pastel-wash + left-edge tint), Measurements tab, all 5 calorie-tile states, Progress charts overlay, Settings pane. (The "focus reveals pills" idea was dropped — it was a misread of the existing form, which already reveals all fields on "Log Food".) **Awaiting Andy's review/approval before any real style change.**
 
 ## Next steps
 1. **REVIEW GATE:** Andy opens `notes/visual-preview.html` (light + dark) and approves / requests changes. Do not touch `styles.css`/`index.html` until then.
