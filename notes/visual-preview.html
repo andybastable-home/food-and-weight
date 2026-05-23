@@ -169,14 +169,16 @@ body {
   border-radius: var(--radius-pill);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-  margin-left: auto;
 }
-.settings-dot {
-  width: 30px; height: 30px;
+.header-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.icon-btn {
+  width: 40px; height: 40px;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
+  background: none; border: none;
   display: grid; place-items: center;
 }
+.icon-btn svg { width: 22px; height: 22px; }
 
 /* ---- DATE NAV (Item 3 finalized) ---- */
 .date-nav {
@@ -325,15 +327,19 @@ body {
   overflow: hidden;
   position: relative;
 }
-/* meal-tint as a left edge instead of full wash — calmer, more legible */
+/* combine: keep the soft pastel category wash AND add a stronger left edge
+   in the same hue so the time-of-day reads at a glance even when scanning fast */
+.entry.category-breakfast { background: var(--color-breakfast); }
+.entry.category-lunch     { background: var(--color-lunch); }
+.entry.category-dinner    { background: var(--color-dinner); }
 .entry::before {
   content: "";
   position: absolute; left: 0; top: 0; bottom: 0;
   width: 3px;
 }
-.entry.category-breakfast::before { background: hsl(40 70% 60%); }
-.entry.category-lunch::before { background: hsl(120 40% 55%); }
-.entry.category-dinner::before { background: hsl(260 45% 64%); }
+.entry.category-breakfast::before { background: hsl(40 70% 55%); }
+.entry.category-lunch::before     { background: hsl(120 38% 50%); }
+.entry.category-dinner::before    { background: hsl(260 45% 62%); }
 .entry-row {
   display: flex;
   align-items: baseline;
@@ -459,6 +465,10 @@ body {
         <div class="brand-mark"></div>
         <span class="brand-name">Food &amp; Weight</span>
         <span class="brand-version">v0.17.1</span>
+        <div class="header-actions">
+          <button class="icon-btn" aria-label="Progress charts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="12" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="15" rx="1"/><rect x="18" y="2" width="4" height="19" rx="1"/></svg></button>
+          <button class="icon-btn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        </div>
       </div>
 
       <div class="section-cap">Day header — today / yesterday / historic</div>
@@ -555,6 +565,10 @@ body {
         <div class="brand-mark"></div>
         <span class="brand-name">Food &amp; Weight</span>
         <span class="brand-version">v0.17.1</span>
+        <div class="header-actions">
+          <button class="icon-btn" aria-label="Progress charts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="12" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="15" rx="1"/><rect x="18" y="2" width="4" height="19" rx="1"/></svg></button>
+          <button class="icon-btn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        </div>
       </div>
 
       <div class="section-cap">Day header — today / yesterday / historic</div>
