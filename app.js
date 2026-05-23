@@ -1240,28 +1240,6 @@ function renderEntryForm() {
     caloriesWrap.appendChild(aiBtn);
 
     if (currentTab === 'food') {
-      const cameraBtn = document.createElement('button');
-      cameraBtn.type = 'button';
-      cameraBtn.className = 'camera-button';
-      cameraBtn.textContent = '📷';
-      cameraBtn.setAttribute('aria-label', 'Take a photo');
-
-      const hiddenFileInput = document.createElement('input');
-      hiddenFileInput.type = 'file';
-      hiddenFileInput.accept = 'image/*';
-      hiddenFileInput.capture = 'environment';
-      hiddenFileInput.hidden = true;
-      hiddenFileInput.addEventListener('change', () => {
-        console.log('Photo captured but not yet processed');
-      });
-
-      cameraBtn.addEventListener('click', () => {
-        hiddenFileInput.click();
-      });
-
-      caloriesWrap.appendChild(cameraBtn);
-      caloriesWrap.appendChild(hiddenFileInput);
-
       const chipRow = document.createElement('div');
       chipRow.className = 'match-chip-row hidden';
       const chipBtn = document.createElement('button');

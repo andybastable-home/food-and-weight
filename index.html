@@ -18,7 +18,6 @@
     <div class="brand">
       <img src="./icons/icon.svg" alt="" class="brand-mark" width="32" height="32">
       <span class="brand-name">Food &amp; Weight</span>
-      <span class="brand-version" aria-label="App version">v0.17.1</span>
     </div>
     <div class="header-actions">
       <button id="progress-btn" class="settings-btn" type="button" aria-label="Progress charts">
@@ -112,7 +111,7 @@ e.g. * I run at ~5:30/km pace
           <button id="sync-connect" type="button" class="btn btn-primary">Connect</button>
           <button id="sync-refresh" type="button" class="btn btn-ghost" disabled>Refresh from sheet</button>
           <button id="sync-forget" type="button" class="btn btn-ghost" hidden>Disconnect</button>
-          <a id="sync-sheet-link" href="#" target="_blank" rel="noopener" hidden>Open sheet</a>
+          <a id="sync-sheet-link" class="btn btn-ghost" href="#" target="_blank" rel="noopener" hidden>Open sheet</a>
         </div>
         <p id="sync-status" class="sync-status" aria-live="polite"></p>
       </div>
@@ -192,7 +191,8 @@ e.g. * I run at ~5:30/km pace
   </main>
 
   <footer class="app-footer">
-    <span>v0.17.1 &middot; offline-ready</span>
+    <span class="brand-version" aria-label="App version">v0.17.2</span>
+    <span class="footer-note">offline-ready</span>
   </footer>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>

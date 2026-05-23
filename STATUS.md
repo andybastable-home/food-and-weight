@@ -1,7 +1,9 @@
 # Status
 
 ## Current phase
-**Quick fixes toward 1.0 — Phases A/B/C ✅ shipped** (v0.17.1). Awaiting on-device verification.
+**Quick fixes toward 1.0 — Phases A/B/C ✅ + final polish ✅ shipped** (v0.17.2). Awaiting on-device verification; Andy expects to declare **1.0** after this passes.
+
+Final polish (v0.17.2): version pill moved out of the header — now the only version sits in the footer (same pill styling), so the build number is the footer's job. Weekend-day picker is a 7-col grid (no Sunday orphan). "Open sheet" is now a `btn btn-ghost` anchor. Ghost buttons (Disconnect/Refresh/Open sheet) got a light-grey fill so they read as buttons. Camera button + stub file-input removed from the food form (and its CSS); may revisit in a future multi-modal pass.
 
 Phase A ✅ (functional): Item 1 deficit/surplus wording + `is-near` "small" calmer-grey variant (±150 kcal); "target"→"maintenance". Item 2 swipe left/right to change day. Item 3 `data-daytype` hook.
 
@@ -17,8 +19,9 @@ Phase C ✅: approved styles ported into `styles.css`/`app.js`/`index.html`:
 **Deliberately NOT changed:** net-balance chart orientation. The preview mocked deficit-up/surplus-down, but the live chart is surplus-up/deficit-down. Flipping it is a semantic change, not styling — left as-is pending an explicit decision (open question below).
 
 ## Next steps
-1. **VERIFY (Pixel 8a):** confirm day-type rail/tint + Today pip (light + dark), entry left edges, calorie tile sizing/lowercase status, button gradient, weight-chart area fill; footer shows v0.17.1.
-2. **Open question:** flip the net-balance chart to deficit-up/surplus-down (as the preview mocked)? Decide before closing this out.
+1. **VERIFY (Pixel 8a):** day-type rail/tint + Today pip (light + dark), entry left edges, calorie tile sizing/lowercase status, button gradient, weight-chart area fill; footer-only version pill shows v0.17.2; weekend days all on one row; "Open sheet" + ghost buttons read as buttons; no camera icon in the food form.
+2. **Declare 1.0** once verified — bump to v1.0.0 (index footer + service-worker).
+3. **Open question:** flip the net-balance chart to deficit-up/surplus-down (as the preview mocked)? Decide before/at 1.0.
 
 ## Phase 10 ✅ — Store Gemini reasoning for review/calibration (v0.16.0)
 Gemini's `reasoning` persisted on the entry + synced to sheet column P (`ai_reasoning`); sheet schema v4→v5 via `migrateSheetV4ToV5`. Old/user-entered rows leave P blank.

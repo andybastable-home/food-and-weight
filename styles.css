@@ -194,7 +194,6 @@ body {
   border-radius: var(--radius-pill);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-  margin-left: auto;
 }
 
 /* ------------------------------------------------------------------
@@ -442,26 +441,7 @@ body {
 .ai-button:hover { opacity: 0.7; }
 .ai-button:active { transform: translateY(-50%) scale(0.95); }
 
-.camera-button {
-  position: absolute;
-  right: 40px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  padding: var(--space-2);
-  min-height: auto;
-  transition: opacity 150ms ease;
-}
-
-.camera-button:hover { opacity: 0.7; }
-.camera-button:active { transform: translateY(-50%) scale(0.95); }
-
-.entry-input-wrap:has(.ai-button) .entry-input { padding-right: 80px; }
-.entry-input-wrap:has(.camera-button) .entry-input { padding-right: 80px; }
-.entry-input-wrap:has(.ai-button):has(.camera-button) .entry-input { padding-right: 80px; }
+.entry-input-wrap:has(.ai-button) .entry-input { padding-right: 48px; }
 
 .match-chip-row {
   flex: 1 0 100%;
@@ -576,11 +556,19 @@ body {
 .btn-primary:hover { background: var(--color-accent-strong); }
 
 .btn-ghost {
-  background: transparent;
-  color: var(--color-text-muted);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
   border-color: var(--color-border);
 }
-.btn-ghost:hover { background: var(--color-surface-alt); color: var(--color-text); }
+.btn-ghost:hover { background: var(--color-border); }
+
+/* Anchors styled as buttons (e.g. "Open sheet") should match real buttons. */
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
 
 .btn-danger {
   background: var(--color-danger-soft);
@@ -1341,15 +1329,15 @@ body {
 ------------------------------------------------------------------ */
 
 .goal-weekend-days {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
 }
 
 .goal-day-chip {
-  min-width: 44px;
   min-height: 44px;
-  padding: 0 var(--space-3);
+  padding: 0 2px;
+  text-align: center;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);
   background: none;
@@ -1372,7 +1360,10 @@ body {
 .app-footer {
   padding: var(--space-5);
   padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   font-size: 13px;
   color: var(--color-text-muted);
 }
