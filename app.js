@@ -1982,8 +1982,9 @@ function weeklyNetDeficitStats(weekDays) {
 // Weekly outlook: a forward-looking weight-loss rate (kg/wk) read two ways, framed
 // optimistically. The conservative end (`low`) drives the verdict so it can only
 // pleasantly surprise; the trend line is the proof beneath.
-//  - forecastLoss: from the trailing-7-complete-day net deficit (responds to today's
-//    effort; runs conservative because logged intake errs high).
+//  - forecastLoss: from the trailing 7 *complete* logged days' net deficit. Today's
+//    partial day is deliberately excluded, so logging meals never moves the number.
+//    Runs conservative because logged intake errs high.
 //  - trendLoss: from a regression of morning weight over ~14 days (the actual scale).
 // Returns { forecastLoss, trendLoss, low, high, band, showNumber } or null.
 function computeWeeklyOutlook(days, now) {
