@@ -1559,19 +1559,19 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
 
   const finalTarget = target + workoutTotal;
   const remaining = finalTarget - foodTotal;
-  const isUnder = remaining >= 0;
+  const todayDeficit = remaining >= 0;
 
-  // Colour the wheel off the 7-day rolling average, not today — so one heavy day
-  // can't repaint a week of real progress. Today's number stays as the hero, but
-  // it's framed by where the week actually sits. Falls back to today when there's
-  // no rolling history yet.
+  // Today's number is the hero; the week's rolling deficit gives it context.
+  // A day reads "green" if it was itself a deficit OR the week is still banking
+  // one — so a single sensible-but-big day, and days with a thin rolling window,
+  // never get painted as failure. Surplus days that the week isn't covering go a
+  // calm grey rather than alarm-amber.
   const r = rolling ? Math.round(rolling.avgDaily) : null; // +ve = banking a deficit
-  let state; // 'good' | 'holding' | 'over'
-  if (r != null) state = r >= 75 ? 'good' : (r <= -75 ? 'over' : 'holding');
-  else state = isUnder ? 'good' : 'over';
+  const rollingGood = r != null && r >= 75;
+  const rollingOver = r != null && r <= -75;
+  const isGreen = todayDeficit || rollingGood;
 
-  els.calTotal.classList.add(
-    state === 'good' ? 'is-under' : (state === 'over' ? 'is-over' : 'is-near'));
+  els.calTotal.classList.add(isGreen ? 'is-under' : 'is-near');
 
   const progress = finalTarget > 0 ? foodTotal / finalTarget : 0;
   const { wrap, inner } = buildCalRing(progress);
@@ -1581,15 +1581,14 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
   hero.textContent = Math.abs(remaining).toLocaleString();
   const unit = document.createElement('div');
   unit.className = 'cal-hero-unit';
-  unit.textContent = isUnder ? 'left' : 'over';
+  unit.textContent = todayDeficit ? 'under' : 'over';
   inner.append(hero, unit);
 
   const text = document.createElement('div');
   text.className = 'cal-text';
   const status = document.createElement('div');
   status.className = 'cal-status';
-  status.textContent = state === 'good' ? 'on track'
-    : (state === 'holding' ? 'holding steady' : 'over this week');
+  status.textContent = isGreen ? 'on track' : 'over today';
 
   const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} activity)` : '';
   const detail = document.createElement('div');
@@ -1597,22 +1596,23 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
   detail.textContent = `eaten ${foodTotal.toLocaleString()} · maintenance ${target.toLocaleString()}${workoutPart}`;
   text.append(status, detail);
 
-  // Warm, honest framing keyed off the week — this is what stops a sensible-but-big
-  // day from feeling like a failure.
-  if (r != null) {
-    const affirm = document.createElement('div');
-    affirm.className = 'cal-affirm';
-    if (state === 'good') {
-      affirm.textContent = isUnder
-        ? `Banking ~${r.toLocaleString()} kcal/day this week — nice work.`
-        : `Over today, but you're well in the deficit this week — no harm done.`;
-    } else if (state === 'holding') {
-      affirm.textContent = `Roughly even this week — back at it tomorrow.`;
-    } else {
-      affirm.textContent = `Running ~${Math.abs(r).toLocaleString()} kcal/day over this week — a lighter day or two will bring it back.`;
-    }
-    text.append(affirm);
+  // Warm framing keyed off today + the week — what stops a big day feeling like failure.
+  const affirm = document.createElement('div');
+  affirm.className = 'cal-affirm';
+  if (todayDeficit) {
+    affirm.textContent = rollingGood
+      ? `Banking ~${r.toLocaleString()} kcal/day this week — nice work.`
+      : `Under today — keep stacking them up.`;
+  } else if (rollingGood) {
+    affirm.textContent = `Over today, but you're well in the deficit this week — no harm done.`;
+  } else if (rollingOver) {
+    affirm.textContent = `A bit over today and for the week — a lighter day or two will bring it back.`;
+  } else if (r != null) {
+    affirm.textContent = `Over today — roughly even this week. Back at it tomorrow.`;
+  } else {
+    affirm.textContent = `Over today — back at it tomorrow.`;
   }
+  text.append(affirm);
 
   els.calTotal.append(wrap, text);
 }
@@ -2001,6 +2001,12 @@ function computeWeeklyOutlook(days, now) {
     const slope = linregSlope(trendPts); // kg/day
     if (slope != null) trendLoss = -slope * 7;
   }
+
+  // Cap at 1 kg/wk — Andy isn't aiming beyond that, and it stops the upper end of
+  // the range reading oddly specific (e.g. 1.1). Also why the ring is full at 1 kg/wk.
+  const CAP_KG_PER_WK = 1.0;
+  if (forecastLoss != null) forecastLoss = Math.min(forecastLoss, CAP_KG_PER_WK);
+  if (trendLoss != null) trendLoss = Math.min(trendLoss, CAP_KG_PER_WK);
 
   const estimates = [forecastLoss, trendLoss].filter(v => v != null);
   if (!estimates.length) return null;

@@ -840,8 +840,10 @@ a.btn {
   font-variation-settings: "opsz" 72;
 }
 
-/* Day-view hero stays neutral — today's number is plain data; the wheel and
-   status carry the (week-based) verdict so one big day doesn't read as failure. */
+/* Day-view hero: green when the day (or the week) is in deficit, calm grey when
+   today's a surplus the week isn't covering — a subtle deficit/surplus cue. */
+.calories-total.is-under .cal-hero { color: var(--color-success); }
+.calories-total.is-near  .cal-hero { color: var(--color-text-muted); }
 
 .cal-hero-unit {
   margin-top: 4px;
