@@ -840,10 +840,10 @@ a.btn {
   font-variation-settings: "opsz" 72;
 }
 
-/* Day-view hero: green when the day (or the week) is in deficit, calm grey when
-   today's a surplus the week isn't covering — a subtle deficit/surplus cue. */
-.calories-total.is-under .cal-hero { color: var(--color-success); }
-.calories-total.is-near  .cal-hero { color: var(--color-text-muted); }
+/* Day-view hero reflects TODAY only: green on a deficit day, calm grey on a
+   surplus day — independent of the ring/status, which follow the rolling week. */
+.cal-hero.is-deficit { color: var(--color-success); }
+.cal-hero.is-surplus { color: var(--color-text-muted); }
 
 .cal-hero-unit {
   margin-top: 4px;

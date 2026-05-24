@@ -1561,23 +1561,21 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
   const remaining = finalTarget - foodTotal;
   const todayDeficit = remaining >= 0;
 
-  // Today's number is the hero; the week's rolling deficit gives it context.
-  // A day reads "green" if it was itself a deficit OR the week is still banking
-  // one — so a single sensible-but-big day, and days with a thin rolling window,
-  // never get painted as failure. Surplus days that the week isn't covering go a
-  // calm grey rather than alarm-amber.
+  // Two independent signals: the hero number reflects TODAY (calm grey when it was
+  // a surplus, green when a deficit), while the ring, status and affirm line are
+  // coloured off the 7-day rolling deficit — so the week's verdict frames today's
+  // number without one heavy day repainting everything.
   const r = rolling ? Math.round(rolling.avgDaily) : null; // +ve = banking a deficit
   const rollingGood = r != null && r >= 75;
   const rollingOver = r != null && r <= -75;
-  const isGreen = todayDeficit || rollingGood;
 
-  els.calTotal.classList.add(isGreen ? 'is-under' : 'is-near');
+  els.calTotal.classList.add(rollingGood ? 'is-under' : 'is-near');
 
   const progress = finalTarget > 0 ? foodTotal / finalTarget : 0;
   const { wrap, inner } = buildCalRing(progress);
 
   const hero = document.createElement('div');
-  hero.className = 'cal-hero';
+  hero.className = 'cal-hero ' + (todayDeficit ? 'is-deficit' : 'is-surplus');
   hero.textContent = Math.abs(remaining).toLocaleString();
   const unit = document.createElement('div');
   unit.className = 'cal-hero-unit';
@@ -1588,7 +1586,9 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
   text.className = 'cal-text';
   const status = document.createElement('div');
   status.className = 'cal-status';
-  status.textContent = isGreen ? 'on track' : 'over today';
+  status.textContent = rollingGood ? 'on track'
+    : rollingOver ? 'over this week'
+    : 'holding steady';
 
   const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} activity)` : '';
   const detail = document.createElement('div');
