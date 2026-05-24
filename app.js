@@ -462,7 +462,7 @@ async function requestGeminiEstimation(inputText) {
 
   if (!apiKey) throw new Error('No API key configured — set it in the AI tab.');
 
-  const prompt = `You are a personal diet assistant helping with weight loss. Estimate calories for the food item as accurately as possible. Where there is genuine uncertainty, err on the side of overestimating calories (not underestimating) to support weight loss goals — but do not adjust estimates that already have high confidence.\n\n[PERSONAL DIET PROFILE]\n${contextText || 'No personal profile set.'}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant food emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
+  const prompt = `You are a personal diet assistant helping with weight loss. Estimate calories for the food item as accurately as possible. Give your best central, most-likely estimate — do not deliberately bias the number high or low. When portion or recipe details are given, use them rather than assuming larger restaurant-style portions.\n\n[PERSONAL DIET PROFILE]\n${contextText || 'No personal profile set.'}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant food emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
 
   const base = 'https://generativelanguage.googleapis.com/v1beta/models';
   const body = JSON.stringify({
@@ -1984,7 +1984,8 @@ function weeklyNetDeficitStats(weekDays) {
 // pleasantly surprise; the trend line is the proof beneath.
 //  - forecastLoss: from the trailing 7 *complete* logged days' net deficit. Today's
 //    partial day is deliberately excluded, so logging meals never moves the number.
-//    Runs conservative because logged intake errs high.
+//    Intake estimates are unbiased best-guesses, so this is a central estimate, not
+//    a deliberately conservative one — the `low`-end verdict supplies the caution.
 //  - trendLoss: from a regression of morning weight over ~14 days (the actual scale).
 // Returns { forecastLoss, trendLoss, low, high, band, showNumber } or null.
 function computeWeeklyOutlook(days, now) {
