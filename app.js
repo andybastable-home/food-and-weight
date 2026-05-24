@@ -1580,8 +1580,9 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
   const progress = finalTarget > 0 ? foodTotal / finalTarget : 0;
   const { wrap, inner } = buildCalRing(progress);
 
+  inner.classList.add(todayDeficit ? 'is-deficit' : 'is-surplus');
   const hero = document.createElement('div');
-  hero.className = 'cal-hero ' + (todayDeficit ? 'is-deficit' : 'is-surplus');
+  hero.className = 'cal-hero';
   hero.textContent = Math.abs(remaining).toLocaleString();
   const unit = document.createElement('div');
   unit.className = 'cal-hero-unit';
@@ -1986,7 +1987,9 @@ function weeklyNetDeficitStats(weekDays) {
 //  - trendLoss: from a regression of morning weight over ~14 days (the actual scale).
 // Returns { forecastLoss, trendLoss, low, high, band, showNumber } or null.
 function computeWeeklyOutlook(days, now) {
-  const todayStr = now.toISOString().slice(0, 10);
+  // Match the day-record date convention (local startOfDay → ISO date) so today is
+  // excluded correctly even in a +UTC timezone, where now.toISOString() is a day ahead.
+  const todayStr = startOfDay(now).toISOString().slice(0, 10);
   const complete = days.filter(d => d.date < todayStr);
 
   // Forecast from the trailing 7 complete days that were actually logged.
@@ -2225,7 +2228,9 @@ async function renderProgress() {
   // Days inside the user-selected range only (for the top three charts).
   const rangeStartTs = startOfDay(startDate).getTime();
   const rangeDays = days.filter(d => new Date(d.date + 'T00:00:00').getTime() >= rangeStartTs);
-  const todayStr = now.toISOString().slice(0, 10);
+  // startOfDay → ISO matches how day records are keyed, so the partial current day
+  // is reliably dropped from the net-balance chart (avoids a phantom huge deficit).
+  const todayStr = startOfDay(now).toISOString().slice(0, 10);
   const completeDays = rangeDays.filter(d => d.date !== todayStr);
   chartsEl.appendChild(buildWeightChart(rangeDays));
   chartsEl.appendChild(buildCaloriesChart(rangeDays));

@@ -27,8 +27,6 @@
   --color-danger: hsl(2 65% 52%);
   --color-danger-soft: hsl(2 70% 96%);
   --color-warning: hsl(32 85% 48%);
-  /* Violet — complements the success green, pops without amber/red's alarm. */
-  --color-caution: hsl(268 62% 55%);
 
   /* Day-type accents (Item 3) */
   --color-today-tint: hsl(205 85% 96.5%);
@@ -81,7 +79,6 @@
     --color-danger: hsl(2 70% 62%);
     --color-danger-soft: hsl(2 30% 18%);
     --color-warning: hsl(32 80% 60%);
-    --color-caution: hsl(266 70% 74%);
 
     /* Day-type accents (dark mode) */
     --color-today-tint: hsl(210 38% 16%);
@@ -843,10 +840,13 @@ a.btn {
   font-variation-settings: "opsz" 72;
 }
 
-/* Day-view hero reflects TODAY only: green on a deficit day, calm grey on a
-   surplus day — independent of the ring/status, which follow the rolling week. */
-.cal-hero.is-deficit { color: var(--color-success); }
-.cal-hero.is-surplus { color: var(--color-caution); }
+/* Day-view ring text reflects TODAY only — both the number and its unit: green on
+   a deficit day, red on a surplus day. Independent of the ring stroke/status, which
+   follow the rolling week, so red here reads as "today went over", not "failure". */
+.cal-ring-inner.is-deficit .cal-hero,
+.cal-ring-inner.is-deficit .cal-hero-unit { color: var(--color-success); }
+.cal-ring-inner.is-surplus .cal-hero,
+.cal-ring-inner.is-surplus .cal-hero-unit { color: var(--color-danger); }
 
 .cal-hero-unit {
   margin-top: 4px;
