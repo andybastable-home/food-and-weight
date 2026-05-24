@@ -814,7 +814,7 @@ a.btn {
 }
 
 .calories-total.is-under .cal-ring-fill { stroke: var(--color-success); }
-.calories-total.is-over  .cal-ring-fill { stroke: var(--color-danger); }
+.calories-total.is-over  .cal-ring-fill { stroke: var(--color-warning); }
 .calories-total.is-muted .cal-ring-fill { stroke: var(--color-text-muted); }
 .calories-total.is-near  .cal-ring-fill { stroke: var(--color-text-muted); }
 
@@ -840,9 +840,8 @@ a.btn {
   font-variation-settings: "opsz" 72;
 }
 
-.calories-total.is-under .cal-hero { color: var(--color-success); }
-.calories-total.is-over  .cal-hero { color: var(--color-danger); }
-.calories-total.is-near  .cal-hero { color: var(--color-text-muted); }
+/* Day-view hero stays neutral — today's number is plain data; the wheel and
+   status carry the (week-based) verdict so one big day doesn't read as failure. */
 
 .cal-hero-unit {
   margin-top: 4px;
@@ -875,7 +874,7 @@ a.btn {
 .calories-total .cal-status { text-transform: lowercase; }
 
 .calories-total.is-under .cal-status { color: var(--color-success); }
-.calories-total.is-over  .cal-status { color: var(--color-danger); }
+.calories-total.is-over  .cal-status { color: var(--color-warning); }
 .calories-total.is-near  .cal-status { color: var(--color-text-muted); }
 
 .cal-detail {
@@ -885,6 +884,16 @@ a.btn {
   font-variant-numeric: tabular-nums;
   line-height: 1.45;
 }
+
+.cal-affirm {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+.calories-total.is-under .cal-affirm { color: var(--color-success); }
+.calories-total.is-over  .cal-affirm { color: var(--color-warning); }
 
 /* ------------------------------------------------------------------
    Sheets sync spike panel — temporary, will be redesigned post-spike
@@ -1304,54 +1313,29 @@ a.btn {
   box-shadow: 0 1px 3px var(--color-shadow), 0 8px 24px var(--color-shadow);
 }
 
-.pace-tile.is-behind   .cal-ring-fill { stroke: var(--color-danger); }
-.pace-tile.is-on-pace  .cal-ring-fill { stroke: var(--color-success); }
-.pace-tile.is-ahead    .cal-ring-fill { stroke: var(--color-success); }
-.pace-tile.is-way-ahead .cal-ring-fill { stroke: var(--color-warning); }
+.pace-tile.is-great    .cal-ring-fill { stroke: var(--color-success); }
+.pace-tile.is-steady   .cal-ring-fill { stroke: var(--color-success); }
+.pace-tile.is-holding  .cal-ring-fill { stroke: var(--color-text-muted); }
+.pace-tile.is-gaining  .cal-ring-fill { stroke: var(--color-warning); }
 .pace-tile.is-muted    .cal-ring-fill { stroke: var(--color-text-muted); }
 
-.pace-tile.is-behind    .cal-hero,
-.pace-tile.is-behind    .cal-status { color: var(--color-danger); }
-.pace-tile.is-on-pace   .cal-hero,
-.pace-tile.is-on-pace   .cal-status,
-.pace-tile.is-ahead     .cal-hero,
-.pace-tile.is-ahead     .cal-status { color: var(--color-success); }
-.pace-tile.is-way-ahead .cal-hero,
-.pace-tile.is-way-ahead .cal-status { color: var(--color-warning); }
+/* A soft glow makes a smashing week feel rewarding to glance at. */
+.pace-tile.is-great .cal-ring-fill {
+  filter: drop-shadow(0 0 5px hsl(150 55% 45% / 0.55));
+}
+
+.pace-tile.is-great    .cal-hero,
+.pace-tile.is-great    .cal-status,
+.pace-tile.is-steady   .cal-hero,
+.pace-tile.is-steady   .cal-status { color: var(--color-success); }
+.pace-tile.is-holding  .cal-hero,
+.pace-tile.is-holding  .cal-status { color: var(--color-text-muted); }
+.pace-tile.is-gaining  .cal-hero,
+.pace-tile.is-gaining  .cal-status { color: var(--color-warning); }
 
 .chart-bar.is-current {
   fill: var(--color-text-muted);
   opacity: 0.4;
-}
-
-/* ------------------------------------------------------------------
-   Weekend-day picker (settings)
------------------------------------------------------------------- */
-
-.goal-weekend-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: var(--space-1);
-}
-
-.goal-day-chip {
-  min-height: 44px;
-  padding: 0 2px;
-  text-align: center;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  background: none;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 120ms, color 120ms, border-color 120ms;
-}
-
-.goal-day-chip.is-active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: white;
 }
 
 /* ------------------------------------------------------------------

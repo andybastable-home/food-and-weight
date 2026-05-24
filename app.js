@@ -58,13 +58,8 @@ const WEIGHT_AVG_WINDOW_DAYS = 7;
 const ACTIVITY_MULTIPLIER = 1.2;
 const WEIGHT_STALENESS_LIMIT_DAYS = 14;
 
-// Weekly goal — kcal/kg conversion + defaults
+// kcal per kg of body weight — converts a calorie deficit into a weight-loss rate.
 const KCAL_PER_KG = 7700;
-const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DOW_MON_FIRST = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const DEFAULT_WEEKLY_LOSS_GOAL_KG = 0.6;
-const DEFAULT_WEEKEND_RATIO = 0.5;
-const DEFAULT_WEEKEND_DAYS = ['Fri', 'Sat', 'Sun'];
 
 // Map Gemini's confidence labels to compact storage values.
 function mapConfidence(geminiConf) {
@@ -135,9 +130,6 @@ const TYPES = {
 // Date / number helpers
 // ------------------------------------------------------------------
 const DAY_MS = 86400000;
-
-// Within ±this many kcal of maintenance, a deficit/surplus is "small" (calmer styling).
-const SMALL_DELTA_KCAL = 150;
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -220,13 +212,6 @@ function startOfWeek(date) {
   const dow = d.getDay(); // 0=Sun..6=Sat
   const offset = dow === 0 ? -6 : 1 - dow;
   return addDays(d, offset);
-}
-
-function dowLabel(dateOrStr) {
-  const d = typeof dateOrStr === 'string'
-    ? new Date(dateOrStr + 'T12:00:00')
-    : new Date(dateOrStr);
-  return DOW_SHORT[d.getDay()];
 }
 
 const TIME_CATEGORIES = ['Breakfast', 'Morning', 'Lunch', 'Afternoon', 'Dinner', 'Evening'];
@@ -622,37 +607,6 @@ function matchFrequent(query) {
 }
 
 // ------------------------------------------------------------------
-// Weekly goal (settings, persisted to localStorage)
-// ------------------------------------------------------------------
-function getGoal() {
-  const kgRaw = localStorage.getItem('fw_goal_kg_per_week');
-  const ratioRaw = localStorage.getItem('fw_goal_weekend_ratio');
-  const daysRaw = localStorage.getItem('fw_goal_weekend_days');
-  const kg = parseFloat(kgRaw);
-  const ratio = parseFloat(ratioRaw);
-  const days = daysRaw
-    ? daysRaw.split(',').map(s => s.trim()).filter(Boolean)
-    : DEFAULT_WEEKEND_DAYS;
-  return {
-    weeklyKg: Number.isFinite(kg) ? kg : DEFAULT_WEEKLY_LOSS_GOAL_KG,
-    weekendRatio: Number.isFinite(ratio) ? ratio : DEFAULT_WEEKEND_RATIO,
-    weekendDays: new Set(days),
-  };
-}
-
-function setGoal({ weeklyKg, weekendRatio, weekendDays } = {}) {
-  if (weeklyKg != null && Number.isFinite(weeklyKg)) {
-    localStorage.setItem('fw_goal_kg_per_week', String(weeklyKg));
-  }
-  if (weekendRatio != null && Number.isFinite(weekendRatio)) {
-    localStorage.setItem('fw_goal_weekend_ratio', String(weekendRatio));
-  }
-  if (weekendDays != null) {
-    localStorage.setItem('fw_goal_weekend_days', Array.from(weekendDays).join(','));
-  }
-}
-
-// ------------------------------------------------------------------
 // Settings panel
 // ------------------------------------------------------------------
 function loadSettingsValues() {
@@ -670,81 +624,6 @@ function loadSettingsValues() {
   if (ageEl) ageEl.value = localStorage.getItem('fw_cal_age') || '';
   if (htEl) htEl.value = localStorage.getItem('fw_cal_height') || '';
   updateCalTargetPreview();
-
-  const goal = getGoal();
-  const kgEl = document.getElementById('cfg-goal-kg');
-  const ratioEl = document.getElementById('cfg-goal-weekend-ratio');
-  if (kgEl) kgEl.value = goal.weeklyKg;
-  if (ratioEl) ratioEl.value = goal.weekendRatio;
-  renderWeekendDayPicker(goal.weekendDays);
-  updateGoalPreview();
-}
-
-function renderWeekendDayPicker(selectedSet) {
-  const host = document.getElementById('cfg-goal-weekend-days');
-  if (!host) return;
-  host.replaceChildren();
-  for (const label of DOW_MON_FIRST) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'goal-day-chip' + (selectedSet.has(label) ? ' is-active' : '');
-    btn.dataset.day = label;
-    btn.textContent = label;
-    btn.setAttribute('aria-pressed', String(selectedSet.has(label)));
-    btn.addEventListener('click', () => {
-      const active = btn.classList.toggle('is-active');
-      btn.setAttribute('aria-pressed', String(active));
-      saveGoalFields();
-    });
-    host.appendChild(btn);
-  }
-}
-
-function readGoalFromForm() {
-  const kgEl = document.getElementById('cfg-goal-kg');
-  const ratioEl = document.getElementById('cfg-goal-weekend-ratio');
-  const host = document.getElementById('cfg-goal-weekend-days');
-  const kg = kgEl ? parseFloat(kgEl.value) : NaN;
-  const ratio = ratioEl ? parseFloat(ratioEl.value) : NaN;
-  const days = host
-    ? Array.from(host.querySelectorAll('.goal-day-chip.is-active')).map(b => b.dataset.day)
-    : Array.from(DEFAULT_WEEKEND_DAYS);
-  return {
-    weeklyKg: Number.isFinite(kg) ? kg : DEFAULT_WEEKLY_LOSS_GOAL_KG,
-    weekendRatio: Number.isFinite(ratio) ? ratio : DEFAULT_WEEKEND_RATIO,
-    weekendDays: new Set(days),
-  };
-}
-
-function saveGoalFields() {
-  setGoal(readGoalFromForm());
-  updateGoalPreview();
-  if (typeof pushProfileAndGoalToSheet === 'function') {
-    pushProfileAndGoalToSheet().catch(() => {});
-  }
-}
-
-function updateGoalPreview() {
-  const preview = document.getElementById('cfg-goal-preview');
-  if (!preview) return;
-  const goal = readGoalFromForm();
-  if (!(goal.weeklyKg > 0)) {
-    preview.textContent = 'Set a goal above 0 to see your daily deficit budget.';
-    return;
-  }
-  const weeklyDeficit = goal.weeklyKg * KCAL_PER_KG;
-  const weekendCount = DOW_MON_FIRST.filter(d => goal.weekendDays.has(d)).length;
-  const weekdayCount = 7 - weekendCount;
-  const divisor = weekdayCount + goal.weekendRatio * weekendCount;
-  if (divisor <= 0) {
-    preview.textContent = 'Pick at least one weekday so the goal can be split.';
-    return;
-  }
-  const weekday = Math.round(weeklyDeficit / divisor);
-  const weekend = Math.round(weekday * goal.weekendRatio);
-  preview.textContent =
-    `Weekly deficit ${Math.round(weeklyDeficit).toLocaleString()} kcal · ` +
-    `weekday −${weekday.toLocaleString()} · weekend −${weekend.toLocaleString()}.`;
 }
 
 async function updateCalTargetPreview() {
@@ -843,7 +722,6 @@ function initSettingsPanel() {
     if (sexEl) localStorage.setItem('fw_cal_sex', sexEl.value);
     if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
     if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
-    saveGoalFields();
     if (typeof pushProfileAndGoalToSheet === 'function') {
       pushProfileAndGoalToSheet().catch(() => {});
     }
@@ -888,13 +766,6 @@ function initSettingsPanel() {
   if (sexEl) sexEl.addEventListener('change', saveCalField);
   if (ageEl) ageEl.addEventListener('blur', saveCalField);
   if (htEl) htEl.addEventListener('blur', saveCalField);
-
-  const goalKgEl = document.getElementById('cfg-goal-kg');
-  const goalRatioEl = document.getElementById('cfg-goal-weekend-ratio');
-  if (goalKgEl) goalKgEl.addEventListener('blur', saveGoalFields);
-  if (goalKgEl) goalKgEl.addEventListener('input', updateGoalPreview);
-  if (goalRatioEl) goalRatioEl.addEventListener('blur', saveGoalFields);
-  if (goalRatioEl) goalRatioEl.addEventListener('input', updateGoalPreview);
 }
 
 // ------------------------------------------------------------------
@@ -1596,12 +1467,28 @@ async function refreshList() {
     const workoutTotal = Math.round(workoutDay.reduce((sum, e) => sum + (e.calories || 0), 0));
     const targetInfo = await computeMaintenanceTarget(currentDate);
     const target = targetInfo?.targetKcal ?? null;
+    const rolling = target ? await computeRollingDeficit(currentDate) : null;
 
-    renderCalorieTotal({ foodTotal, workoutTotal, target });
+    renderCalorieTotal({ foodTotal, workoutTotal, target, rolling });
     els.calTotal.hidden = false;
   } else {
     els.calTotal.hidden = true;
   }
+}
+
+// Average daily net deficit over the trailing `windowDays` complete days before
+// `date` (positive = deficit). Days with no food logged are treated as unlogged
+// and skipped. Returns { avgDaily, daysUsed } or null when there's nothing usable.
+async function computeRollingDeficit(date, windowDays = 7) {
+  const { days } = await loadProgressRange(addDays(date, -windowDays), addDays(date, -1));
+  let sum = 0, used = 0;
+  for (const d of days) {
+    if (d.targetKcal == null || d.foodKcal === 0) continue;
+    sum += d.targetKcal + d.workoutKcal - d.foodKcal;
+    used++;
+  }
+  if (used === 0) return null;
+  return { avgDaily: sum / used, daysUsed: used };
 }
 
 function buildCalRing(progress) {
@@ -1641,7 +1528,7 @@ function buildCalRing(progress) {
   return { wrap, inner };
 }
 
-function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
+function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
   els.calTotal.replaceChildren();
   els.calTotal.classList.remove('is-under', 'is-over', 'is-muted', 'is-near');
 
@@ -1673,9 +1560,18 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
   const finalTarget = target + workoutTotal;
   const remaining = finalTarget - foodTotal;
   const isUnder = remaining >= 0;
-  const isNear = Math.abs(remaining) <= SMALL_DELTA_KCAL;
-  els.calTotal.classList.add(isUnder ? 'is-under' : 'is-over');
-  if (isNear) els.calTotal.classList.add('is-near');
+
+  // Colour the wheel off the 7-day rolling average, not today — so one heavy day
+  // can't repaint a week of real progress. Today's number stays as the hero, but
+  // it's framed by where the week actually sits. Falls back to today when there's
+  // no rolling history yet.
+  const r = rolling ? Math.round(rolling.avgDaily) : null; // +ve = banking a deficit
+  let state; // 'good' | 'holding' | 'over'
+  if (r != null) state = r >= 75 ? 'good' : (r <= -75 ? 'over' : 'holding');
+  else state = isUnder ? 'good' : 'over';
+
+  els.calTotal.classList.add(
+    state === 'good' ? 'is-under' : (state === 'over' ? 'is-over' : 'is-near'));
 
   const progress = finalTarget > 0 ? foodTotal / finalTarget : 0;
   const { wrap, inner } = buildCalRing(progress);
@@ -1692,14 +1588,31 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target }) {
   text.className = 'cal-text';
   const status = document.createElement('div');
   status.className = 'cal-status';
-  status.textContent = isUnder
-    ? (isNear ? 'small deficit' : 'deficit')
-    : (isNear ? 'small surplus' : 'surplus');
+  status.textContent = state === 'good' ? 'on track'
+    : (state === 'holding' ? 'holding steady' : 'over this week');
+
+  const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} activity)` : '';
   const detail = document.createElement('div');
   detail.className = 'cal-detail';
-  const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} activity)` : '';
   detail.textContent = `eaten ${foodTotal.toLocaleString()} · maintenance ${target.toLocaleString()}${workoutPart}`;
   text.append(status, detail);
+
+  // Warm, honest framing keyed off the week — this is what stops a sensible-but-big
+  // day from feeling like a failure.
+  if (r != null) {
+    const affirm = document.createElement('div');
+    affirm.className = 'cal-affirm';
+    if (state === 'good') {
+      affirm.textContent = isUnder
+        ? `Banking ~${r.toLocaleString()} kcal/day this week — nice work.`
+        : `Over today, but you're well in the deficit this week — no harm done.`;
+    } else if (state === 'holding') {
+      affirm.textContent = `Roughly even this week — back at it tomorrow.`;
+    } else {
+      affirm.textContent = `Running ~${Math.abs(r).toLocaleString()} kcal/day over this week — a lighter day or two will bring it back.`;
+    }
+    text.append(affirm);
+  }
 
   els.calTotal.append(wrap, text);
 }
@@ -1990,38 +1903,20 @@ function buildNetBalanceChart(days) {
 }
 
 // ------------------------------------------------------------------
-// Weekly goal: pace tile + weekly deficit chart
+// This week: outlook tile + weekly deficit chart
 // ------------------------------------------------------------------
 
 const WEEKLY_CHART_WEEKS = 10;
 
-// Typical cumulative fraction of a day's food eaten by hour-of-day. Used to
-// scale today's partial-day contribution to the pace ring so pre-meal hours
-// don't look falsely banked. Linear interpolation between control points.
-// Curve aims to track Andy's eating: breakfast 8–10, lunch ~12–14, dinner ~17–21.
-const MEAL_CURVE_POINTS = [
-  [0,  0.0],
-  [4,  0.0],
-  [8,  0.05],
-  [10, 0.25],
-  [12, 0.30],
-  [14, 0.55],
-  [17, 0.65],
-  [21, 0.95],
-  [24, 1.0],
-];
-
-function mealCurveAt(hourOfDay) {
-  const h = Math.max(0, Math.min(24, hourOfDay));
-  for (let i = 1; i < MEAL_CURVE_POINTS.length; i++) {
-    const [h1, p1] = MEAL_CURVE_POINTS[i - 1];
-    const [h2, p2] = MEAL_CURVE_POINTS[i];
-    if (h <= h2) {
-      const t = h2 === h1 ? 0 : (h - h1) / (h2 - h1);
-      return p1 + t * (p2 - p1);
-    }
-  }
-  return 1;
+// Least-squares slope of y over x. Returns y-per-x, or null if undefined.
+function linregSlope(points) {
+  const n = points.length;
+  if (n < 2) return null;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const p of points) { sx += p.x; sy += p.y; sxx += p.x * p.x; sxy += p.x * p.y; }
+  const denom = n * sxx - sx * sx;
+  if (denom === 0) return null;
+  return (n * sxy - sx * sy) / denom;
 }
 
 // Group day records (from loadProgressRange) into ISO weeks (Mon..Sun).
@@ -2077,114 +1972,127 @@ function weeklyNetDeficitStats(weekDays) {
   return { deficit: sum, missingFoodDays };
 }
 
-// Pace calculation for the current week.
-// Returns { actual, expected, ratio, state, weeklyDeficitGoal, dayIndex, weekDays }
-// or null if the goal/profile can't produce a meaningful number.
-function computeWeeklyPace(weekDays, goal, now) {
-  const weeklyDeficitGoal = goal.weeklyKg * KCAL_PER_KG;
-  if (!(weeklyDeficitGoal > 0)) return null;
+// Weekly outlook: a forward-looking weight-loss rate (kg/wk) read two ways, framed
+// optimistically. The conservative end (`low`) drives the verdict so it can only
+// pleasantly surprise; the trend line is the proof beneath.
+//  - forecastLoss: from the trailing-7-complete-day net deficit (responds to today's
+//    effort; runs conservative because logged intake errs high).
+//  - trendLoss: from a regression of morning weight over ~14 days (the actual scale).
+// Returns { forecastLoss, trendLoss, low, high, band, showNumber } or null.
+function computeWeeklyOutlook(days, now) {
+  const todayStr = now.toISOString().slice(0, 10);
+  const complete = days.filter(d => d.date < todayStr);
 
-  // Day-type counts over the full Mon-Sun structure.
-  let weekendCount = 0, weekdayCount = 0;
-  for (const d of weekDays) {
-    if (goal.weekendDays.has(dowLabel(d.date))) weekendCount++;
-    else weekdayCount++;
+  // Forecast from the trailing 7 complete days that were actually logged.
+  let forecastLoss = null;
+  const last7 = complete.slice(-7).filter(d => d.targetKcal != null && d.foodKcal > 0);
+  if (last7.length >= 3) {
+    const avgDaily = last7.reduce((s, d) => s + (d.targetKcal + d.workoutKcal - d.foodKcal), 0) / last7.length;
+    forecastLoss = (avgDaily * 7) / KCAL_PER_KG;
   }
-  const R = goal.weekendRatio;
-  const divisor = weekdayCount + R * weekendCount;
-  if (divisor <= 0) return null;
-  const dayDeficitWeekday = weeklyDeficitGoal / divisor;
-  const dayDeficitWeekend = dayDeficitWeekday * R;
 
-  let expected = 0, actual = 0;
-  let usableDays = 0;
-  for (const d of weekDays) {
-    const dayStart = new Date(d.date + 'T00:00:00');
-    if (now < dayStart) break;
-    const dayEndMs = endOfDay(dayStart).getTime();
-    // Use the meal curve (not linear time) so today's partial contribution scales
-    // with how much food a typical day has consumed by now, avoiding the
-    // false-banked signal in the pre-meal hours. Past days collapse to 1.
-    let mealFrac = 1;
-    if (now.getTime() <= dayEndMs) {
-      const hoursIntoDay = (now.getTime() - dayStart.getTime()) / (60 * 60 * 1000);
-      mealFrac = mealCurveAt(hoursIntoDay);
-    }
-    if (d.targetKcal == null) continue;
-    const isWe = goal.weekendDays.has(dowLabel(d.date));
-    const D_today = isWe ? dayDeficitWeekend : dayDeficitWeekday;
-    expected += D_today * mealFrac;
-    actual += d.targetKcal * mealFrac + d.workoutKcal - d.foodKcal;
-    usableDays++;
+  // Trend from a regression of morning weight over the trailing ~14 days (+ today).
+  const trendPts = days
+    .slice(-15)
+    .filter(d => d.weight != null)
+    .map(d => ({ x: new Date(d.date + 'T00:00:00').getTime() / 86400000, y: d.weight }));
+  let trendLoss = null;
+  if (trendPts.length >= 4) {
+    const slope = linregSlope(trendPts); // kg/day
+    if (slope != null) trendLoss = -slope * 7;
   }
-  if (usableDays === 0 || expected <= 0) return null;
 
-  const ratio = actual / expected;
-  let state;
-  if (ratio < 0.85) state = 'behind';
-  else if (ratio <= 1.15) state = 'on_pace';
-  else if (ratio <= 1.5) state = 'ahead';
-  else state = 'way_ahead';
+  const estimates = [forecastLoss, trendLoss].filter(v => v != null);
+  if (!estimates.length) return null;
+  const low = Math.min(...estimates);
+  const high = Math.max(...estimates);
 
-  // 1..7, counts days that have started (including today partial)
-  const dayIndex = Math.min(7,
-    weekDays.filter(d => now >= new Date(d.date + 'T00:00:00')).length || 1);
+  // Two-layer guard: only call a gain when the effort says surplus AND the scale
+  // confirms it's flat-or-up. Either alone is within noise.
+  const gaining = forecastLoss != null && forecastLoss < -0.05
+    && trendLoss != null && trendLoss <= 0.05;
 
-  return { actual, expected, ratio, state, weeklyDeficitGoal, dayIndex };
+  let band;
+  if (gaining) band = 'gaining';
+  else if (low >= 0.3) band = 'great';
+  else if (low >= 0.1) band = 'steady';
+  else band = 'holding';
+
+  // Below ~0.2 kg/wk a number is inside scale noise — show words, not false precision.
+  const showNumber = !gaining && low >= 0.2;
+
+  return { forecastLoss, trendLoss, low, high, band, showNumber };
 }
 
-function buildPaceTile(pace) {
-  const tile = document.createElement('div');
-  tile.className = 'pace-tile is-' + pace.state.replace('_', '-');
+const OUTLOOK_WORD = {
+  great: 'Great progress',
+  steady: 'Steady drop',
+  holding: 'Holding steady',
+  gaining: 'Edging up',
+};
 
-  // Ring fill: cap visual fill at 1.0 so the arc stays inside the ring.
-  const fill = Math.max(0, Math.min(1, pace.ratio));
-  const { wrap, inner } = buildCalRing(fill);
+function fmtKg(v) {
+  return (Math.round(v * 10) / 10).toFixed(1);
+}
+
+function buildOutlookTile(outlook) {
+  const tile = document.createElement('div');
+  tile.className = 'pace-tile is-' + outlook.band;
+
+  // Fill maps the conservative rate over 0..1 kg/wk, so the arc grows as you earn it.
+  const fillVal = outlook.band === 'gaining'
+    ? 0.06
+    : Math.max(0.06, Math.min(1, outlook.low / 1.0));
+  const { wrap, inner } = buildCalRing(fillVal);
 
   const hero = document.createElement('div');
   hero.className = 'cal-hero';
-  hero.textContent = Math.round(pace.ratio * 100) + '%';
   const unit = document.createElement('div');
   unit.className = 'cal-hero-unit';
-  unit.textContent = 'of pace';
+  if (outlook.showNumber) {
+    hero.textContent = fmtKg(outlook.low);
+    unit.textContent = 'kg/wk';
+  } else if (outlook.band === 'gaining') {
+    hero.textContent = '↑';
+    unit.textContent = 'this week';
+  } else if (outlook.band === 'holding') {
+    hero.textContent = '≈';
+    unit.textContent = 'holding';
+  } else {
+    hero.textContent = '↓';
+    unit.textContent = 'this week';
+  }
   inner.append(hero, unit);
 
   const text = document.createElement('div');
   text.className = 'cal-text';
   const status = document.createElement('div');
   status.className = 'cal-status';
-  status.textContent = {
-    behind: 'Behind pace',
-    on_pace: 'On pace',
-    ahead: 'Ahead',
-    way_ahead: 'Way ahead',
-  }[pace.state];
+  status.textContent = OUTLOOK_WORD[outlook.band];
 
   const detail = document.createElement('div');
   detail.className = 'cal-detail';
-  const actual = Math.round(pace.actual);
-  const expected = Math.round(pace.expected);
-  const diff = actual - expected;
-  const banked = Math.abs(diff);
-  detail.textContent = (() => {
-    if (pace.state === 'way_ahead') {
-      return `Banked ${banked.toLocaleString()} kcal — eat more, this isn't sustainable.`;
-    }
-    if (pace.state === 'ahead') {
-      return `Banked ${banked.toLocaleString()} kcal — room to spare.`;
-    }
-    if (pace.state === 'behind') {
-      return `Short ${banked.toLocaleString()} kcal · ${actual.toLocaleString()} of ${expected.toLocaleString()} expected.`;
-    }
-    return `${actual.toLocaleString()} of ${expected.toLocaleString()} kcal · day ${pace.dayIndex} of 7.`;
-  })();
+  if (outlook.band === 'gaining') {
+    detail.textContent = 'Up a little this week — a lighter day or two will set it right.';
+  } else if (!outlook.showNumber) {
+    detail.textContent = outlook.band === 'holding'
+      ? 'Holding steady — not gaining. Back at it tomorrow.'
+      : 'Heading the right way — still early in the week.';
+  } else {
+    const lo = fmtKg(outlook.low);
+    const hi = fmtKg(outlook.high);
+    const range = (outlook.high - outlook.low >= 0.1) ? `${lo}–${hi}` : `~${lo}`;
+    detail.textContent = outlook.band === 'great'
+      ? `On track for ${range} kg this week — brilliant.`
+      : `On track for ${range} kg this week — keep it rolling.`;
+  }
   text.append(status, detail);
 
   tile.append(wrap, text);
   return tile;
 }
 
-function buildPaceEmpty(reason) {
+function buildOutlookEmpty(reason) {
   const tile = document.createElement('div');
   tile.className = 'pace-tile is-muted';
   const { wrap, inner } = buildCalRing(0);
@@ -2196,7 +2104,7 @@ function buildPaceEmpty(reason) {
   text.className = 'cal-text';
   const status = document.createElement('div');
   status.className = 'cal-status';
-  status.textContent = 'Weekly pace';
+  status.textContent = 'This week';
   const detail = document.createElement('div');
   detail.className = 'cal-detail';
   detail.textContent = reason;
@@ -2205,9 +2113,8 @@ function buildPaceEmpty(reason) {
   return tile;
 }
 
-function buildWeeklyDeficitChart(weeks, goal) {
-  const { fig, svg } = makeChartWrap('Weekly Deficit vs Goal (kcal)');
-  const weeklyDeficitGoal = goal.weeklyKg * KCAL_PER_KG;
+function buildWeeklyDeficitChart(weeks) {
+  const { fig, svg } = makeChartWrap('Weekly Deficit (kcal)');
 
   const bars = weeks.map(w => {
     const stats = weeklyNetDeficitStats(w.days);
@@ -2226,11 +2133,11 @@ function buildWeeklyDeficitChart(weeks, goal) {
     return fig;
   }
 
-  // Goal line is always positive (deficit). Y range covers actual data + goal + symmetric headroom.
+  // Y range covers actual data with symmetric headroom.
   const maxAbs = Math.max(
     Math.abs(Math.min(...vals, 0)),
-    Math.abs(Math.max(...vals, weeklyDeficitGoal)),
-    weeklyDeficitGoal > 0 ? weeklyDeficitGoal * 1.2 : 1000,
+    Math.abs(Math.max(...vals, 0)),
+    1000,
   );
   const yMin = -maxAbs * 1.1;
   const yMax = maxAbs * 1.15;
@@ -2245,16 +2152,6 @@ function buildWeeklyDeficitChart(weeks, goal) {
     class: 'chart-zero-line',
   }));
 
-  // Goal reference line (dashed).
-  if (weeklyDeficitGoal > 0) {
-    const goalY = chartYPos(weeklyDeficitGoal, yMin, yMax);
-    svg.appendChild(svgEl('line', {
-      x1: CP.l, y1: goalY.toFixed(1),
-      x2: CHART_W - CP.r, y2: goalY.toFixed(1),
-      class: 'chart-target-line',
-    }));
-  }
-
   // X-axis labels: week-start dates, sparse so they fit.
   const labelEvery = n <= 6 ? 1 : 2;
   for (let i = 0; i < n; i++) {
@@ -2268,8 +2165,7 @@ function buildWeeklyDeficitChart(weeks, goal) {
   for (let i = 0; i < n; i++) {
     const b = bars[i];
     if (b.deficit == null) continue;
-    // Deficit positive = good (under target) -> render as a bar ABOVE zero in the chart
-    // (visually: bar height extends from zeroY upward toward the goal line).
+    // Deficit positive = good (under maintenance) -> bar extends above the zero line.
     const yVal = chartYPos(b.deficit, yMin, yMax);
     const by = b.deficit > 0 ? yVal : zeroY;
     const bh = Math.max(1, Math.abs(zeroY - yVal));
@@ -2323,8 +2219,7 @@ async function renderProgress() {
   chartsEl.appendChild(buildCaloriesChart(rangeDays));
   chartsEl.appendChild(buildNetBalanceChart(completeDays));
 
-  // Weekly goal section at the bottom — pace tile + weekly bars.
-  const goal = getGoal();
+  // This-week section at the bottom — outlook tile + weekly bars.
   const weeks = groupDaysIntoWeeks(days, now);
   const lastWeeks = weeks.slice(-WEEKLY_CHART_WEEKS);
 
@@ -2332,21 +2227,14 @@ async function renderProgress() {
   section.className = 'pace-section';
   const heading = document.createElement('h2');
   heading.className = 'pace-section-title';
-  heading.textContent = 'Weekly Goal';
+  heading.textContent = 'This Week';
   section.appendChild(heading);
 
-  const currentWeek = weeks.find(w => w.isCurrent);
-  if (!(goal.weeklyKg > 0)) {
-    section.appendChild(buildPaceEmpty('Set a goal in Settings to see your weekly pace.'));
-  } else if (!currentWeek) {
-    section.appendChild(buildPaceEmpty('No data this week yet.'));
-  } else {
-    const pace = computeWeeklyPace(currentWeek.days, goal, now);
-    section.appendChild(pace
-      ? buildPaceTile(pace)
-      : buildPaceEmpty('Set your profile so a maintenance target is available.'));
-  }
-  section.appendChild(buildWeeklyDeficitChart(lastWeeks, goal));
+  const outlook = computeWeeklyOutlook(days, now);
+  section.appendChild(outlook
+    ? buildOutlookTile(outlook)
+    : buildOutlookEmpty('Log a few days and your weight to see where this week is heading.'));
+  section.appendChild(buildWeeklyDeficitChart(lastWeeks));
   chartsEl.appendChild(section);
 }
 
