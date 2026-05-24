@@ -1,7 +1,7 @@
 # Status
 
 ## Current state
-**v1.1.3 shipped.** No work in flight.
+**v1.1.4 shipped.** No work in flight.
 
 1.x covers the full feature set: food/activity/measurements logging, local Dexie store, one-phone↔one-sheet Google Sheets sync (schema v5), AI calorie/effort estimation (Gemini) with stored reasoning, local fuzzy repeat-food chip, rolling-average maintenance target, Progress charts (weight + trend, calories vs target, net balance), day-type header differentiation, swipe-to-change-day, and the deficit/surplus calorie tile.
 

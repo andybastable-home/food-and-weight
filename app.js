@@ -1561,13 +1561,19 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
   const remaining = finalTarget - foodTotal;
   const todayDeficit = remaining >= 0;
 
-  // Two independent signals: the hero number reflects TODAY (calm grey when it was
-  // a surplus, green when a deficit), while the ring, status and affirm line are
+  // Two independent signals: the hero number reflects TODAY (caution colour when it
+  // was a surplus, green when a deficit), while the ring, status and affirm line are
   // coloured off the 7-day rolling deficit — so the week's verdict frames today's
   // number without one heavy day repainting everything.
+  // The rolling verdict is optimistic under partial data: until a near-complete week
+  // is logged we assume the week is good (green) rather than judging it off a sparse
+  // window, which early ramp-up days would otherwise show as a phantom surplus.
+  const ROLLING_VERDICT_MIN_DAYS = 6;
   const r = rolling ? Math.round(rolling.avgDaily) : null; // +ve = banking a deficit
-  const rollingGood = r != null && r >= 75;
-  const rollingOver = r != null && r <= -75;
+  const enoughForVerdict = rolling != null && rolling.daysUsed >= ROLLING_VERDICT_MIN_DAYS;
+  const rollingGood = !enoughForVerdict || r >= 75; // optimistic when partial
+  const rollingOver = enoughForVerdict && r <= -75;
+  const weekBanking = enoughForVerdict && rollingGood; // enough data to cite a figure
 
   els.calTotal.classList.add(rollingGood ? 'is-under' : 'is-near');
 
@@ -1600,17 +1606,17 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
   const affirm = document.createElement('div');
   affirm.className = 'cal-affirm';
   if (todayDeficit) {
-    affirm.textContent = rollingGood
+    affirm.textContent = weekBanking
       ? `Banking ~${r.toLocaleString()} kcal/day this week — nice work.`
       : `Under today — keep stacking them up.`;
   } else if (rollingGood) {
-    affirm.textContent = `Over today, but you're well in the deficit this week — no harm done.`;
+    affirm.textContent = weekBanking
+      ? `Over today, but you're well in the deficit this week — no harm done.`
+      : `Over today — recent days have been solid, no harm done.`;
   } else if (rollingOver) {
     affirm.textContent = `A bit over today and for the week — a lighter day or two will bring it back.`;
-  } else if (r != null) {
-    affirm.textContent = `Over today — roughly even this week. Back at it tomorrow.`;
   } else {
-    affirm.textContent = `Over today — back at it tomorrow.`;
+    affirm.textContent = `Over today — roughly even this week. Back at it tomorrow.`;
   }
   text.append(affirm);
 

@@ -27,8 +27,8 @@
   --color-danger: hsl(2 65% 52%);
   --color-danger-soft: hsl(2 70% 96%);
   --color-warning: hsl(32 85% 48%);
-  /* Muted dark yellow — distinct from body text without amber's alarm. */
-  --color-caution: hsl(45 62% 38%);
+  /* Violet — complements the success green, pops without amber/red's alarm. */
+  --color-caution: hsl(268 62% 55%);
 
   /* Day-type accents (Item 3) */
   --color-today-tint: hsl(205 85% 96.5%);
@@ -81,7 +81,7 @@
     --color-danger: hsl(2 70% 62%);
     --color-danger-soft: hsl(2 30% 18%);
     --color-warning: hsl(32 80% 60%);
-    --color-caution: hsl(46 65% 60%);
+    --color-caution: hsl(266 70% 74%);
 
     /* Day-type accents (dark mode) */
     --color-today-tint: hsl(210 38% 16%);
