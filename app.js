@@ -1513,6 +1513,12 @@ async function refreshList() {
 
   if (currentTab === 'food' || currentTab === 'workout') {
     const foodDay = currentTab === 'food' ? entries : await loadEntries(currentDate, 'food');
+    // A past day with no food logged has no meaningful daily balance — hide the pane.
+    const isToday = currentDate.getTime() === startOfDay(new Date()).getTime();
+    if (!isToday && foodDay.length === 0) {
+      els.calTotal.hidden = true;
+      return;
+    }
     const workoutDay = currentTab === 'workout' ? entries : await loadEntries(currentDate, 'workout');
     const foodTotal = Math.round(foodDay.reduce((sum, e) => sum + (e.calories || 0), 0));
     const workoutTotal = Math.round(workoutDay.reduce((sum, e) => sum + (e.calories || 0), 0));
