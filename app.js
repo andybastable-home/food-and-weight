@@ -456,43 +456,69 @@ function setTab(tab) {
 // ------------------------------------------------------------------
 // AI estimation
 // ------------------------------------------------------------------
-async function requestGeminiEstimation(inputText) {
+// Resize an image File to a max-edge JPEG, returned as bare base64 (no data: prefix).
+async function fileToResizedJpegBase64(file, maxEdge = 1024, quality = 0.85) {
+  if (!file || !file.type.startsWith('image/')) throw new Error('not an image');
+  if (file.size > 8 * 1024 * 1024) throw new Error('image too large (max 8MB)');
+
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('could not read file'));
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload  = () => resolve(im);
+    im.onerror = () => reject(new Error('could not decode image'));
+    im.src = dataUrl;
+  });
+
+  const scale  = Math.min(1, maxEdge / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width  = Math.round(img.width  * scale);
+  canvas.height = Math.round(img.height * scale);
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  const out = canvas.toDataURL('image/jpeg', quality);
+  return out.slice(out.indexOf(',') + 1);
+}
+
+// Single Gemini call. Returns { calories, title, confidence, reasoning } regardless
+// of whether the model replies with the array schema or (defensively) an object.
+async function geminiGenerate(apiKey, model, parts) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }),
+  });
+  if (!res.ok) {
+    if (res.status >= 500) throw new Error('Gemini is busy right now — please try again in a moment.');
+    if (res.status === 429 || res.status === 403) throw new Error('AI quota reached — please try again later.');
+    throw new Error('Request failed — check your API key or connection.');
+  }
+  const data = await res.json();
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!raw) throw new Error('Empty response from Gemini');
+  const out = JSON.parse(raw);
+  const [calories, title, confidence, reasoning] = Array.isArray(out)
+    ? out
+    : [out.calories, out.title, out.confidence, out.reasoning]; // tolerate object form at this API boundary
+  return { calories, title, confidence, reasoning };
+}
+
+async function requestGeminiEstimation(inputText, photoBase64) {
   const apiKey = (localStorage.getItem('fw_gemini_key') || '').trim();
   const contextText = (localStorage.getItem('fw_gemini_context') || '').trim();
 
   if (!apiKey) throw new Error('No API key configured — set it in the AI tab.');
 
-  const prompt = `You are a personal diet assistant helping with weight loss. Estimate calories for the food item as accurately as possible. Give your best central, most-likely estimate — do not deliberately bias the number high or low. When portion or recipe details are given, use them rather than assuming larger restaurant-style portions.\n\n[PERSONAL DIET PROFILE]\n${contextText || 'No personal profile set.'}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant food emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
+  const prompt = `You are a personal diet assistant helping with weight loss. Estimate calories for the food as accurately as possible. Give your best central, most-likely estimate — do not deliberately bias the number high or low. When portion or recipe details are given, use them rather than assuming larger restaurant-style portions. If a photo is attached, use it as the primary signal — read any recipe text, packaging, portion size, or the plate — and treat the text as extra detail.\n\n[PERSONAL DIET PROFILE]\n${contextText || 'No personal profile set.'}\n\n[INPUT]\n${inputText}\n\nRespond with a JSON array matching this exact schema:\n[\n  <number_calories>,\n  "<emoji> <string_short_title>",\n  "<confidence_one_of: Excellent|Moderate|Low>",\n  "<reasoning_max_25_words_focus_only_on_raw_ingredients_weights_and_densities_no_methodology_filler>"\n]\n\nExample: [842, "🍳 Scrambled Eggs & Toast", "Excellent", "3 eggs (195 kcal), dash of milk, 20g Norpak spread, 55g homemade bread slice."]`;
 
-  const base = 'https://generativelanguage.googleapis.com/v1beta/models';
-  const body = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json' },
-  });
-  const fetchModel = (model) => fetch(`${base}/${model}:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  });
+  const parts = [{ text: prompt }];
+  if (photoBase64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: photoBase64 } });
 
-  const isQuotaError = (status) => status === 429 || status === 403;
-
-  let res = await fetchModel('gemini-2.5-flash');
-  let modelUsed = 'gemini-2.5-flash';
-  if (isQuotaError(res.status)) {
-    console.warn(`[ai] ${modelUsed} quota hit (${res.status}), falling back to gemini-2.0-flash`);
-    res = await fetchModel('gemini-2.0-flash');
-    modelUsed = 'gemini-2.0-flash';
-  }
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status} (${modelUsed}): ${text.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) throw new Error('Empty response from Gemini');
-  return JSON.parse(raw);
+  const model = photoBase64 ? 'gemini-3.5-flash' : 'gemini-2.5-flash';
+  return geminiGenerate(apiKey, model, parts);
 }
 
 async function requestWorkoutEstimation(inputText, effort) {
@@ -517,37 +543,9 @@ async function requestWorkoutEstimation(inputText, effort) {
   const effortKey = (effort || 'low').toLowerCase();
   const effortLine = EFFORT_DESCRIPTIONS[effortKey] || EFFORT_DESCRIPTIONS.low;
 
-  const prompt = `You are a conservative exercise calorie estimator helping with weight loss. Estimate calories burned as accurately as possible. Where there is genuine uncertainty, err on the side of underestimating (not overestimating) to support weight loss goals — but do not adjust estimates that already have high confidence. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg.\n\n[PERSONAL FITNESS PROFILE]\n${fitnessContext || 'No personal profile set.'}\n\n[ACTIVITY]\n${inputText}\n\n[EFFORT]\nUser-reported effort: ${effortKey} — ${effortLine}\nUse this to calibrate intensity assumptions (pace, heart-rate zone, work-to-rest ratio).\n\nRespond with a JSON object matching this exact schema:\n{\n  "calories": <number>,\n  "title": "<string with a relevant activity emoji prefix>",\n  "confidence": "<one of: Excellent, Moderate, Low>",\n  "reasoning": "<brief explanation>"\n}`;
+  const prompt = `You are a conservative exercise calorie estimator helping with weight loss. Estimate calories burned as accurately as possible. Where there is genuine uncertainty, err on the side of underestimating (not overestimating) to support weight loss goals — but do not adjust estimates that already have high confidence. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg.\n\n[PERSONAL FITNESS PROFILE]\n${fitnessContext || 'No personal profile set.'}\n\n[ACTIVITY]\n${inputText}\n\n[EFFORT]\nUser-reported effort: ${effortKey} — ${effortLine}\nUse this to calibrate intensity assumptions (pace, heart-rate zone, work-to-rest ratio).\n\nRespond with a JSON array matching this exact schema:\n[\n  <number_calories_burned>,\n  "<emoji> <string_short_title>",\n  "<confidence_one_of: Excellent|Moderate|Low>",\n  "<reasoning_max_25_words_focus_only_on_raw_MET_values_durations_and_biometrics_no_methodology_filler>"\n]\n\nExample: [240, "🏃 Evening Run", "Excellent", "22.5 min weeding (3.0 METs) + 22.5 min vigorous raking (4.5 METs), medium effort, 115 bpm."]`;
 
-  const base = 'https://generativelanguage.googleapis.com/v1beta/models';
-  const body = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json' },
-  });
-  const fetchModel = (model) => fetch(`${base}/${model}:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  });
-
-  const isQuotaError = (status) => status === 429 || status === 403;
-
-  let res = await fetchModel('gemini-2.5-flash');
-  let modelUsed = 'gemini-2.5-flash';
-  if (isQuotaError(res.status)) {
-    console.warn(`[ai] ${modelUsed} quota hit (${res.status}), falling back to gemini-2.0-flash`);
-    res = await fetchModel('gemini-2.0-flash');
-    modelUsed = 'gemini-2.0-flash';
-  }
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status} (${modelUsed}): ${text.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) throw new Error('Empty response from Gemini');
-  return JSON.parse(raw);
+  return geminiGenerate(apiKey, 'gemini-2.5-flash', [{ text: prompt }]);
 }
 
 // ------------------------------------------------------------------
@@ -1057,6 +1055,58 @@ function renderEntryForm() {
     caloriesInput.className = 'entry-input';
     caloriesWrap.appendChild(caloriesInput);
 
+    // Transient photo for AI food estimation — lives only in this closure, never
+    // persisted; resets on every re-render (including post-submit).
+    let pendingPhotoBase64 = null;
+    let photoPreview = null;
+    if (currentTab === 'food') {
+      const cameraBtn = document.createElement('button');
+      cameraBtn.type = 'button';
+      cameraBtn.className = 'camera-button';
+      cameraBtn.textContent = '📷';
+      cameraBtn.setAttribute('aria-label', 'Add a food photo');
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.capture = 'environment';
+      fileInput.hidden = true;
+
+      photoPreview = document.createElement('div');
+      photoPreview.className = 'photo-preview hidden';
+      const thumb = document.createElement('img');
+      thumb.className = 'photo-preview-thumb';
+      thumb.alt = 'Food photo';
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'photo-preview-remove';
+      removeBtn.textContent = '×';
+      removeBtn.setAttribute('aria-label', 'Remove photo');
+      photoPreview.append(thumb, removeBtn);
+
+      cameraBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        try {
+          pendingPhotoBase64 = await fileToResizedJpegBase64(file);
+          thumb.src = `data:image/jpeg;base64,${pendingPhotoBase64}`;
+          photoPreview.classList.remove('hidden');
+        } catch (err) {
+          aiStatusLog.className = 'ai-status-log confidence-error';
+          aiStatusLog.textContent = `Couldn't use that photo: ${err.message}`;
+        }
+      });
+      removeBtn.addEventListener('click', () => {
+        pendingPhotoBase64 = null;
+        fileInput.value = '';
+        photoPreview.classList.add('hidden');
+      });
+
+      caloriesWrap.appendChild(cameraBtn);
+      caloriesWrap.appendChild(fileInput);
+    }
+
     const aiBtn = document.createElement('button');
     aiBtn.type = 'button';
     aiBtn.className = 'ai-button';
@@ -1064,9 +1114,10 @@ function renderEntryForm() {
     aiBtn.setAttribute('aria-label', 'Estimate calories with AI');
     aiBtn.addEventListener('click', async () => {
       const text = input.value.trim();
-      if (!text) {
+      const blocked = currentTab === 'food' ? (!text && !pendingPhotoBase64) : !text;
+      if (blocked) {
         aiStatusLog.className = 'ai-status-log confidence-error';
-        aiStatusLog.textContent = 'Enter a food description first.';
+        aiStatusLog.textContent = 'Enter a description first.';
         return;
       }
       aiBtn.disabled = true;
@@ -1080,7 +1131,7 @@ function renderEntryForm() {
           const effort = effortSelected ? effortSelected.value : 'low';
           result = await requestWorkoutEstimation(text, effort);
         } else {
-          result = await requestGeminiEstimation(text);
+          result = await requestGeminiEstimation(text, pendingPhotoBase64);
         }
         // Stash lineage on the form so submit can pick it up. The user's
         // pre-AI text is captured before we overwrite the input.
@@ -1103,8 +1154,7 @@ function renderEntryForm() {
         aiStatusLog.textContent = `✨ Confidence: ${conf} — ${result.reasoning || ''}`;
       } catch (err) {
         aiStatusLog.className = 'ai-status-log confidence-error';
-        const msg = err.message.includes('No API key') ? 'Set your Gemini key in Settings first.' : 'Request failed — check your API key or connection.';
-        aiStatusLog.textContent = msg;
+        aiStatusLog.textContent = err.message.includes('No API key') ? 'Set your Gemini key in Settings first.' : err.message;
       } finally {
         aiBtn.disabled = false;
         aiBtn.textContent = '✨';
@@ -1164,6 +1214,7 @@ function renderEntryForm() {
       form.appendChild(wrap);
       form.appendChild(aiStatusLog);
       form.appendChild(caloriesWrap);
+      if (photoPreview) form.appendChild(photoPreview);
       form.appendChild(chipRow);
     } else {
       // workout branch

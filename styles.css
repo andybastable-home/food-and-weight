@@ -441,7 +441,53 @@ body {
 .ai-button:hover { opacity: 0.7; }
 .ai-button:active { transform: translateY(-50%) scale(0.95); }
 
+.camera-button {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: var(--space-2);
+  min-height: auto;
+  transition: opacity 150ms ease;
+}
+
+.camera-button:hover { opacity: 0.7; }
+.camera-button:active { transform: translateY(-50%) scale(0.95); }
+
 .entry-input-wrap:has(.ai-button) .entry-input { padding-right: 48px; }
+.entry-input-wrap:has(.camera-button) .entry-input { padding-right: 80px; }
+
+.photo-preview {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.photo-preview.hidden { display: none; }
+
+.photo-preview-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.photo-preview-remove {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  min-height: auto;
+}
+.photo-preview-remove:hover { color: var(--color-text); }
 
 .match-chip-row {
   flex: 1 0 100%;
