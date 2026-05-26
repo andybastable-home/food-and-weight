@@ -556,7 +556,7 @@ let frequentHaystack = [];
 let frequentIndexBy = [];
 const uf = new uFuzzy({ intraMode: 1, intraIns: 1, intraSub: 1, intraTrn: 1, intraDel: 1 });
 const FREQUENT_THRESHOLD = 3;
-const MIN_QUERY_LEN = 2;
+const MIN_QUERY_LEN = 3;
 
 async function rebuildFrequentFoods() {
   const all = await db.entries.where('type').equals('food').toArray();
