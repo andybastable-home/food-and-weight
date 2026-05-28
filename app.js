@@ -244,7 +244,6 @@ function getTimeCategory(date) {
 let currentDate = startOfDay(new Date());
 let currentTab = 'food';
 let confirmingDeleteId = null;
-let confirmingCopyId = null;
 let retroConfirmState = null; // { id, aiResult } when retro-estimate review is open
 let isFormOpen = false;
 let skipMarker = null;
@@ -435,7 +434,6 @@ async function removeSkipMarker() {
 
 function startDeleteConfirm(id) {
   confirmingDeleteId = id;
-  confirmingCopyId = null;
   retroConfirmState = null;
   refreshList();
 }
@@ -445,23 +443,11 @@ function cancelDeleteConfirm() {
   refreshList();
 }
 
-function startCopyConfirm(id) {
-  confirmingCopyId = id;
-  confirmingDeleteId = null;
-  retroConfirmState = null;
-  refreshList();
-}
-
-function cancelCopyConfirm() {
-  confirmingCopyId = null;
-  refreshList();
-}
-
 // Jump to today's food form with this entry's text + calories prefilled, so a
 // repeat meal can be logged without another Gemini call. No AI reasoning carries
-// over — the new entry is marked calorie_source='copied'.
+// over — the new entry is marked calorie_source='copied'. Triggered from the
+// row's selected (delete-confirm) state, so no extra confirmation step.
 function confirmAndCopy(entry) {
-  confirmingCopyId = null;
   prefillEntry = {
     type: entry.type,
     text: entry.text,
@@ -480,7 +466,6 @@ function confirmAndCopy(entry) {
 function setDate(date) {
   currentDate = startOfDay(date);
   confirmingDeleteId = null;
-  confirmingCopyId = null;
   retroConfirmState = null;
   isFormOpen = false;
   skipMarker = null;
@@ -491,7 +476,6 @@ function setTab(tab) {
   if (currentTab === tab) return;
   currentTab = tab;
   confirmingDeleteId = null;
-  confirmingCopyId = null;
   retroConfirmState = null;
   isFormOpen = false;
   skipMarker = null;
@@ -1396,20 +1380,6 @@ function buildEntryRow(entry) {
     row.append(retroBtn);
   }
 
-  // Copy-to-today: only worthwhile for food with a known estimate to reuse.
-  if (entry.type === 'food' && entry.calories) {
-    const copyBtn = document.createElement('button');
-    copyBtn.type = 'button';
-    copyBtn.className = 'entry-copy-btn';
-    copyBtn.setAttribute('aria-label', 'Copy to today');
-    copyBtn.textContent = '⧉';
-    copyBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      startCopyConfirm(entry.id);
-    });
-    row.append(copyBtn);
-  }
-
   li.append(row);
   return li;
 }
@@ -1440,45 +1410,27 @@ function buildDeleteConfirmRow(entry) {
   cancelBtn.textContent = 'Cancel';
   cancelBtn.addEventListener('click', cancelDeleteConfirm);
 
+  // Copy-to-today lives here (not on the row) so it can't be hit by accident;
+  // selecting the row is the deliberate step, so this needs no further confirm.
+  // Only meaningful for food with a known estimate to reuse.
+  if (entry.type === 'food' && entry.calories) {
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'btn btn-ghost';
+    copyBtn.textContent = 'Copy to today';
+    copyBtn.addEventListener('click', () => confirmAndCopy(entry));
+    actions.append(cancelBtn, copyBtn);
+  } else {
+    actions.append(cancelBtn);
+  }
+
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button';
   deleteBtn.className = 'btn btn-danger';
   deleteBtn.textContent = 'Delete';
   deleteBtn.addEventListener('click', () => confirmAndDelete(entry.id));
 
-  actions.append(cancelBtn, deleteBtn);
-  li.append(label, actions);
-  return li;
-}
-
-function buildCopyConfirmRow(entry) {
-  const config = TYPES[entry.type];
-  const li = document.createElement('li');
-  li.className = 'entry entry-deleting';
-  li.dataset.id = String(entry.id);
-
-  const label = document.createElement('span');
-  label.className = 'entry-text';
-  label.textContent = entry.calories
-    ? `${config.formatDisplay(entry)} · ${Math.round(entry.calories)} kcal`
-    : config.formatDisplay(entry);
-
-  const actions = document.createElement('div');
-  actions.className = 'edit-actions';
-
-  const cancelBtn = document.createElement('button');
-  cancelBtn.type = 'button';
-  cancelBtn.className = 'btn btn-ghost';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', cancelCopyConfirm);
-
-  const copyBtn = document.createElement('button');
-  copyBtn.type = 'button';
-  copyBtn.className = 'btn btn-primary';
-  copyBtn.textContent = 'Copy to today';
-  copyBtn.addEventListener('click', () => confirmAndCopy(entry));
-
-  actions.append(cancelBtn, copyBtn);
+  actions.append(deleteBtn);
   li.append(label, actions);
   return li;
 }
@@ -1598,7 +1550,6 @@ function renderEntries(entries) {
 
 function rowForEntry(entry) {
   if (entry.id === confirmingDeleteId) return buildDeleteConfirmRow(entry);
-  if (entry.id === confirmingCopyId) return buildCopyConfirmRow(entry);
   return buildEntryRow(entry);
 }
 

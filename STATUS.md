@@ -1,7 +1,7 @@
 # Status
 
 ## Current state
-**v1.3.0 shipped.** No work in flight. Latest: copy a past food entry to today (confirm → prefilled today's form, `calorie_source='copied'`, no fresh AI call).
+**v1.3.1 shipped.** No work in flight. Latest: "Copy to today" button on a food entry's selected (delete-confirm) state → prefilled today's form, `calorie_source='copied'`, no fresh AI call.
 
 1.x covers the full feature set: food/activity/measurements logging, local Dexie store, one-phone↔one-sheet Google Sheets sync (schema v5), AI calorie/effort estimation (Gemini) with stored reasoning, local fuzzy repeat-food chip, rolling-average maintenance target, Progress charts (weight + trend, calories vs target, net balance), day-type header differentiation, swipe-to-change-day, and the deficit/surplus calorie tile.
 
