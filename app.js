@@ -244,9 +244,12 @@ function getTimeCategory(date) {
 let currentDate = startOfDay(new Date());
 let currentTab = 'food';
 let confirmingDeleteId = null;
+let confirmingCopyId = null;
 let retroConfirmState = null; // { id, aiResult } when retro-estimate review is open
 let isFormOpen = false;
 let skipMarker = null;
+// Set by "copy to today"; consumed once by the next renderEntryForm to prefill.
+let prefillEntry = null;
 let longPressAttached = false;
 
 const els = {
@@ -358,6 +361,13 @@ async function handleAdd(type, formData) {
         entry.aiSuggestedCalories = Number(formData.matchedCalories);
         entry.calorieConfidence = formData.matchedConfidence || '';
         entry.calorieSource = 'match';
+      } else if (formData.copiedTitle) {
+        // Copied from an earlier entry — carry the prior estimate forward as
+        // lineage, but no fresh AI reasoning is attached.
+        entry.aiSuggestedTitle = formData.copiedTitle;
+        entry.aiSuggestedCalories = Number(formData.copiedCalories);
+        entry.calorieConfidence = formData.copiedConfidence || '';
+        entry.calorieSource = 'copied';
       } else {
         entry.calorieSource = 'user';
       }
@@ -425,6 +435,7 @@ async function removeSkipMarker() {
 
 function startDeleteConfirm(id) {
   confirmingDeleteId = id;
+  confirmingCopyId = null;
   retroConfirmState = null;
   refreshList();
 }
@@ -434,9 +445,42 @@ function cancelDeleteConfirm() {
   refreshList();
 }
 
+function startCopyConfirm(id) {
+  confirmingCopyId = id;
+  confirmingDeleteId = null;
+  retroConfirmState = null;
+  refreshList();
+}
+
+function cancelCopyConfirm() {
+  confirmingCopyId = null;
+  refreshList();
+}
+
+// Jump to today's food form with this entry's text + calories prefilled, so a
+// repeat meal can be logged without another Gemini call. No AI reasoning carries
+// over — the new entry is marked calorie_source='copied'.
+function confirmAndCopy(entry) {
+  confirmingCopyId = null;
+  prefillEntry = {
+    type: entry.type,
+    text: entry.text,
+    calories: entry.calories ?? null,
+    timeCategory: entry.timeCategory || getTimeCategory(entry.timestamp),
+    confidence: entry.calorieConfidence || '',
+  };
+  currentDate = startOfDay(new Date());
+  currentTab = entry.type;
+  isFormOpen = true;
+  confirmingDeleteId = null;
+  retroConfirmState = null;
+  refreshAll();
+}
+
 function setDate(date) {
   currentDate = startOfDay(date);
   confirmingDeleteId = null;
+  confirmingCopyId = null;
   retroConfirmState = null;
   isFormOpen = false;
   skipMarker = null;
@@ -447,6 +491,7 @@ function setTab(tab) {
   if (currentTab === tab) return;
   currentTab = tab;
   confirmingDeleteId = null;
+  confirmingCopyId = null;
   retroConfirmState = null;
   isFormOpen = false;
   skipMarker = null;
@@ -1030,11 +1075,21 @@ function renderEntryForm() {
     return;
   }
 
+  // Consume a pending "copy to today" prefill (food only). Read once, then clear
+  // so a later re-render doesn't re-apply it.
+  const prefill = (prefillEntry && prefillEntry.type === currentTab) ? prefillEntry : null;
+  prefillEntry = null;
+
   const form = document.createElement('form');
   form.className = 'entry-form';
   form.autocomplete = 'off';
+  if (prefill) {
+    form.dataset.copiedTitle = prefill.text || '';
+    if (prefill.calories != null) form.dataset.copiedCalories = String(prefill.calories);
+    form.dataset.copiedConfidence = prefill.confidence || '';
+  }
 
-  const input = buildPrimaryInput(config);
+  const input = buildPrimaryInput(config, prefill ? prefill.text : undefined);
   const wrap = buildInputWrap(config, input);
 
   let caloriesInput;
@@ -1043,6 +1098,10 @@ function renderEntryForm() {
 
     const aiStatusLog = document.createElement('div');
     aiStatusLog.className = 'ai-status-log hidden';
+    if (prefill) {
+      aiStatusLog.className = 'ai-status-log confidence-match';
+      aiStatusLog.textContent = '↩ Copied from an earlier entry';
+    }
 
     const caloriesWrap = document.createElement('div');
     caloriesWrap.className = 'entry-input-wrap';
@@ -1053,6 +1112,7 @@ function renderEntryForm() {
     caloriesInput.placeholder = 'Calories (optional)';
     caloriesInput.min = '0';
     caloriesInput.className = 'entry-input';
+    if (prefill && prefill.calories != null) caloriesInput.value = prefill.calories;
     caloriesWrap.appendChild(caloriesInput);
 
     // Transient photo for AI food estimation — lives only in this closure, never
@@ -1232,7 +1292,7 @@ function renderEntryForm() {
   }
 
   if (config.hasTimeCategory) {
-    const defaultCategory = getTimeCategory(Date.now());
+    const defaultCategory = prefill ? prefill.timeCategory : getTimeCategory(Date.now());
     const pills = buildCategoryPills(defaultCategory);
     if (config.hasEffort) pills.style.marginTop = '12px';
     form.appendChild(pills);
@@ -1270,6 +1330,9 @@ function renderEntryForm() {
     if (form.dataset.matchedTitle) formData.matchedTitle = form.dataset.matchedTitle;
     if (form.dataset.matchedCalories) formData.matchedCalories = form.dataset.matchedCalories;
     if (form.dataset.matchedConfidence) formData.matchedConfidence = form.dataset.matchedConfidence;
+    if (form.dataset.copiedTitle) formData.copiedTitle = form.dataset.copiedTitle;
+    if (form.dataset.copiedCalories) formData.copiedCalories = form.dataset.copiedCalories;
+    if (form.dataset.copiedConfidence) formData.copiedConfidence = form.dataset.copiedConfidence;
     const ok = await handleAdd(currentTab, formData);
     if (ok) {
       renderEntryForm();
@@ -1333,6 +1396,20 @@ function buildEntryRow(entry) {
     row.append(retroBtn);
   }
 
+  // Copy-to-today: only worthwhile for food with a known estimate to reuse.
+  if (entry.type === 'food' && entry.calories) {
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'entry-copy-btn';
+    copyBtn.setAttribute('aria-label', 'Copy to today');
+    copyBtn.textContent = '⧉';
+    copyBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      startCopyConfirm(entry.id);
+    });
+    row.append(copyBtn);
+  }
+
   li.append(row);
   return li;
 }
@@ -1370,6 +1447,38 @@ function buildDeleteConfirmRow(entry) {
   deleteBtn.addEventListener('click', () => confirmAndDelete(entry.id));
 
   actions.append(cancelBtn, deleteBtn);
+  li.append(label, actions);
+  return li;
+}
+
+function buildCopyConfirmRow(entry) {
+  const config = TYPES[entry.type];
+  const li = document.createElement('li');
+  li.className = 'entry entry-deleting';
+  li.dataset.id = String(entry.id);
+
+  const label = document.createElement('span');
+  label.className = 'entry-text';
+  label.textContent = entry.calories
+    ? `${config.formatDisplay(entry)} · ${Math.round(entry.calories)} kcal`
+    : config.formatDisplay(entry);
+
+  const actions = document.createElement('div');
+  actions.className = 'edit-actions';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'btn btn-ghost';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', cancelCopyConfirm);
+
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'btn btn-primary';
+  copyBtn.textContent = 'Copy to today';
+  copyBtn.addEventListener('click', () => confirmAndCopy(entry));
+
+  actions.append(cancelBtn, copyBtn);
   li.append(label, actions);
   return li;
 }
@@ -1475,18 +1584,22 @@ function renderEntries(entries) {
       els.list.appendChild(header);
 
       for (const entry of categoryEntries) {
-        const li = entry.id === confirmingDeleteId ? buildDeleteConfirmRow(entry) : buildEntryRow(entry);
+        const li = rowForEntry(entry);
         li.classList.add(`category-${category.toLowerCase()}`);
         els.list.appendChild(li);
       }
     }
   } else {
     for (const entry of entries) {
-      els.list.appendChild(
-        entry.id === confirmingDeleteId ? buildDeleteConfirmRow(entry) : buildEntryRow(entry)
-      );
+      els.list.appendChild(rowForEntry(entry));
     }
   }
+}
+
+function rowForEntry(entry) {
+  if (entry.id === confirmingDeleteId) return buildDeleteConfirmRow(entry);
+  if (entry.id === confirmingCopyId) return buildCopyConfirmRow(entry);
+  return buildEntryRow(entry);
 }
 
 async function refreshList() {
