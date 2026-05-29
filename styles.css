@@ -575,6 +575,15 @@ body {
   background: var(--color-accent-soft);
 }
 
+/* Future-on-today categories: picking one plans rather than logs. */
+.category-pill-future {
+  border-style: dashed;
+  color: var(--color-text-muted);
+}
+.category-pill-future:has(.category-radio:checked) {
+  border-style: dashed;
+}
+
 /* ------------------------------------------------------------------
    Buttons
 ------------------------------------------------------------------ */
@@ -680,6 +689,13 @@ a.btn {
 .entry.category-afternoon::before { background: hsl(200 60% 52%); }
 .entry.category-dinner::before    { background: hsl(260 45% 62%); }
 .entry.category-evening::before   { background: hsl(220 45% 58%); }
+
+/* Pending (planned) entries read as tentative: faded with a dashed outline. */
+.entry-pending {
+  opacity: 0.62;
+  border-style: dashed;
+}
+.entry-pending::before { opacity: 0.5; }
 
 .entry-row {
   width: 100%;
@@ -863,6 +879,20 @@ a.btn {
 .calories-total.is-over  .cal-ring-fill { stroke: var(--color-warning); }
 .calories-total.is-muted .cal-ring-fill { stroke: var(--color-text-muted); }
 .calories-total.is-near  .cal-ring-fill { stroke: var(--color-text-muted); }
+
+/* Planned-food arc: continues the solid arc, faded to read as tentative.
+   Mirrors the confirmed arc's colour so the two read as one ring. */
+.cal-ring-pending {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 9;
+  stroke-linecap: round;
+  opacity: 0.4;
+  transition: stroke-dashoffset 480ms cubic-bezier(0.22, 1, 0.36, 1),
+              stroke 240ms ease;
+}
+.calories-total.is-under .cal-ring-pending { stroke: var(--color-success); }
+.calories-total.is-near  .cal-ring-pending { stroke: var(--color-text-muted); }
 
 .cal-ring-inner {
   position: absolute;

@@ -217,12 +217,12 @@ function startOfWeek(date) {
 const TIME_CATEGORIES = ['Breakfast', 'Morning', 'Lunch', 'Afternoon', 'Dinner', 'Evening'];
 
 const CATEGORY_BOUNDARIES = {
-  Breakfast: { start: 4, end: 10 },
-  Morning: { start: 10, end: 12 },
+  Breakfast: { start: 4, end: 9 },
+  Morning: { start: 9, end: 12 },
   Lunch: { start: 12, end: 14 },
   Afternoon: { start: 14, end: 17 },
-  Dinner: { start: 17, end: 21 },
-  Evening: { start: 21, end: 4 },
+  Dinner: { start: 17, end: 19 },
+  Evening: { start: 19, end: 4 },
 };
 
 function getTimeCategory(date) {
@@ -238,6 +238,17 @@ function getTimeCategory(date) {
   return 'Evening';
 }
 
+// index of a category in TIME_CATEGORIES, -1 if unknown
+function categoryIndex(cat) { return TIME_CATEGORIES.indexOf(cat); }
+
+// true when (date is today) AND (category is strictly later than now's category).
+// Evening wraps to ~19:00, so after that nothing is offered as a future category.
+function isFutureCategory(date, category) {
+  if (startOfDay(date).getTime() !== startOfDay(new Date()).getTime()) return false;
+  const now = categoryIndex(getTimeCategory(Date.now()));
+  return categoryIndex(category) > now;
+}
+
 // ------------------------------------------------------------------
 // State + DOM refs
 // ------------------------------------------------------------------
@@ -247,7 +258,8 @@ let confirmingDeleteId = null;
 let retroConfirmState = null; // { id, aiResult } when retro-estimate review is open
 let isFormOpen = false;
 let skipMarker = null;
-// Set by "copy to today"; consumed once by the next renderEntryForm to prefill.
+// Set by "copy to today" / "confirm plan"; consumed once by the next
+// renderEntryForm to prefill (and, for a confirm, to carry promotingFromId).
 let prefillEntry = null;
 let longPressAttached = false;
 
@@ -276,10 +288,10 @@ const els = {
 async function syncUnsyncedEntries() {
   if (!getSheetId()) return;
   try {
-    const pending = await db.entries.filter(e => !e.synced).toArray();
-    if (!pending.length) return;
-    await syncEntriesToSheet(pending);
-    await Promise.all(pending.map(e => db.entries.update(e.id, { synced: true })));
+    const unsynced = await db.entries.filter(e => !e.pending && !e.synced).toArray();
+    if (!unsynced.length) return;
+    await syncEntriesToSheet(unsynced);
+    await Promise.all(unsynced.map(e => db.entries.update(e.id, { synced: true })));
     console.log('[app] Historical sync complete');
   } catch (err) {
     console.warn('[app] syncUnsyncedEntries failed:', err.message);
@@ -341,6 +353,11 @@ async function handleAdd(type, formData) {
 
   if (config.hasTimeCategory && type !== 'weight') {
     entry.timeCategory = formData.timeCategory || getTimeCategory(entry.timestamp);
+    // A future-on-today category makes this a tentative plan: kept local, never
+    // synced, excluded from all real totals until explicitly confirmed. Confirming
+    // an existing plan (confirmPlan) always lands a real entry, even if its
+    // category hasn't arrived yet.
+    entry.pending = (!formData.confirmPlan && isFutureCategory(currentDate, entry.timeCategory)) || undefined;
   }
 
   if ((type === 'food' || type === 'workout') && formData.calories) {
@@ -381,7 +398,7 @@ async function handleAdd(type, formData) {
   if (type === 'food') rebuildFrequentFoods();
   if (type === 'workout') rebuildFrequentWorkouts();
   const savedEntry = { ...entry, id };
-  if (typeof syncEntriesToSheet === 'function') {
+  if (!entry.pending && typeof syncEntriesToSheet === 'function') {
     syncEntriesToSheet([savedEntry])
       .then(() => db.entries.update(id, { synced: true }))
       .catch(() => {});
@@ -455,6 +472,29 @@ function confirmAndCopy(entry) {
     calories: entry.calories ?? null,
     timeCategory: entry.timeCategory || getTimeCategory(entry.timestamp),
     confidence: entry.calorieConfidence || '',
+  };
+  currentDate = startOfDay(new Date());
+  currentTab = entry.type;
+  isFormOpen = true;
+  confirmingDeleteId = null;
+  retroConfirmState = null;
+  refreshAll();
+}
+
+// Promote a pending (planned) entry to a real one. Prefills the form with the
+// plan's text/calories/category so Andy can save as-is, tweak, or re-estimate
+// (✨). promotingFromId rides along on the prefill onto the form's dataset; the
+// source pending row is deleted only on a successful save (see the submit
+// handler), so cancelling or navigating away leaves the plan untouched.
+function confirmAndPromote(entry) {
+  prefillEntry = {
+    type: entry.type,
+    text: entry.text,
+    calories: entry.calories ?? null,
+    timeCategory: entry.timeCategory || getTimeCategory(entry.timestamp),
+    confidence: entry.calorieConfidence || '',
+    effort: entry.effort || undefined,
+    promotingFromId: entry.id,
   };
   currentDate = startOfDay(new Date());
   currentTab = entry.type;
@@ -594,6 +634,7 @@ const MIN_QUERY_LEN = 3;
 function buildFrequentItems(entries) {
   const groups = new Map();
   for (const entry of entries) {
+    if (entry.pending) continue; // a plan isn't history — don't suggest it
     const canonicalTitle = (entry.aiSuggestedTitle || entry.text || '').trim();
     const canonicalKcal = entry.aiSuggestedCalories ?? entry.calories;
     if (!canonicalTitle || canonicalKcal == null) continue;
@@ -942,6 +983,8 @@ function buildCategoryPills(selectedCategory) {
   for (const category of TIME_CATEGORIES) {
     const label = document.createElement('label');
     label.className = 'category-pill';
+    // Future-on-today categories signal "planning" with a dotted/muted look.
+    if (isFutureCategory(currentDate, category)) label.classList.add('category-pill-future');
 
     const radio = document.createElement('input');
     radio.type = 'radio';
@@ -1095,6 +1138,7 @@ function renderEntryForm() {
     form.dataset.copiedTitle = prefill.text || '';
     if (prefill.calories != null) form.dataset.copiedCalories = String(prefill.calories);
     form.dataset.copiedConfidence = prefill.confidence || '';
+    if (prefill.promotingFromId != null) form.dataset.promotingFromId = String(prefill.promotingFromId);
   }
 
   const input = buildPrimaryInput(config, prefill ? prefill.text : undefined);
@@ -1108,7 +1152,9 @@ function renderEntryForm() {
     aiStatusLog.className = 'ai-status-log hidden';
     if (prefill) {
       aiStatusLog.className = 'ai-status-log confidence-match';
-      aiStatusLog.textContent = '↩ Copied from an earlier entry';
+      aiStatusLog.textContent = prefill.promotingFromId != null
+        ? '↩ Confirming your plan — tweak or save as-is'
+        : '↩ Copied from an earlier entry';
     }
 
     const caloriesWrap = document.createElement('div');
@@ -1345,20 +1391,32 @@ function renderEntryForm() {
   }
 
   if (config.hasEffort) {
-    form.appendChild(buildEffortPills('low'));
-  }
-
-  if (config.hasTimeCategory) {
-    const defaultCategory = prefill ? prefill.timeCategory : getTimeCategory(Date.now());
-    const pills = buildCategoryPills(defaultCategory);
-    if (config.hasEffort) pills.style.marginTop = '12px';
-    form.appendChild(pills);
+    form.appendChild(buildEffortPills(prefill && prefill.effort ? prefill.effort : 'low'));
   }
 
   const saveBtn = document.createElement('button');
   saveBtn.type = 'submit';
   saveBtn.className = 'btn btn-primary';
   saveBtn.textContent = 'Save';
+
+  if (config.hasTimeCategory) {
+    const defaultCategory = prefill ? prefill.timeCategory : getTimeCategory(Date.now());
+    const pills = buildCategoryPills(defaultCategory);
+    if (config.hasEffort) pills.style.marginTop = '12px';
+    form.appendChild(pills);
+    // Picking a future-on-today category turns the save into a plan, so the
+    // button reads "Plan"; recompute on every pill change. When confirming an
+    // existing plan we're promoting to a real entry, so it always reads "Save".
+    const updateSaveLabel = () => {
+      const sel = form.querySelector('input[name="timeCategory"]:checked');
+      const cat = sel ? sel.value : defaultCategory;
+      const planning = !form.dataset.promotingFromId && isFutureCategory(currentDate, cat);
+      saveBtn.textContent = planning ? 'Plan' : 'Save';
+    };
+    pills.addEventListener('change', updateSaveLabel);
+    updateSaveLabel();
+  }
+
   form.appendChild(saveBtn);
 
   form.addEventListener('submit', async (ev) => {
@@ -1390,8 +1448,16 @@ function renderEntryForm() {
     if (form.dataset.copiedTitle) formData.copiedTitle = form.dataset.copiedTitle;
     if (form.dataset.copiedCalories) formData.copiedCalories = form.dataset.copiedCalories;
     if (form.dataset.copiedConfidence) formData.copiedConfidence = form.dataset.copiedConfidence;
+    // Confirming a plan forces a real (non-pending) entry even if its category is still future.
+    if (form.dataset.promotingFromId) formData.confirmPlan = true;
     const ok = await handleAdd(currentTab, formData);
     if (ok) {
+      // Promote: the real entry saved, so retire the source plan. Done only on
+      // success, so a cancelled/abandoned form leaves the pending entry intact.
+      if (form.dataset.promotingFromId) {
+        await db.entries.delete(Number(form.dataset.promotingFromId));
+        await refreshList();
+      }
       renderEntryForm();
     }
   });
@@ -1403,6 +1469,7 @@ function buildEntryRow(entry) {
   const config = TYPES[entry.type];
   const li = document.createElement('li');
   li.className = 'entry';
+  if (entry.pending) li.classList.add('entry-pending');
   li.dataset.id = String(entry.id);
 
   const row = document.createElement('div');
@@ -1461,6 +1528,7 @@ function buildDeleteConfirmRow(entry) {
   const config = TYPES[entry.type];
   const li = document.createElement('li');
   li.className = 'entry entry-deleting';
+  if (entry.pending) li.classList.add('entry-pending');
   li.dataset.id = String(entry.id);
 
   const label = document.createElement('span');
@@ -1483,10 +1551,18 @@ function buildDeleteConfirmRow(entry) {
   cancelBtn.textContent = 'Cancel';
   cancelBtn.addEventListener('click', cancelDeleteConfirm);
 
-  // Copy-to-today lives here (not on the row) so it can't be hit by accident;
-  // selecting the row is the deliberate step, so this needs no further confirm.
-  // Only meaningful for food with a known estimate to reuse.
-  if (entry.type === 'food' && entry.calories) {
+  // Confirm/Copy live here (not on the row) so they can't be hit by accident;
+  // selecting the row is the deliberate step, so neither needs a further confirm.
+  if (entry.pending) {
+    // A plan: promote it to a real entry via the prefilled form.
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = 'btn btn-ghost';
+    confirmBtn.textContent = 'Confirm';
+    confirmBtn.addEventListener('click', () => confirmAndPromote(entry));
+    actions.append(cancelBtn, confirmBtn);
+  } else if (entry.type === 'food' && entry.calories) {
+    // Copy-to-today: only meaningful for food with a known estimate to reuse.
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
     copyBtn.className = 'btn btn-ghost';
@@ -1657,13 +1733,16 @@ async function refreshList() {
       return;
     }
     const workoutDay = currentTab === 'workout' ? entries : await loadEntries(currentDate, 'workout');
-    const foodTotal = Math.round(foodDay.reduce((sum, e) => sum + (e.calories || 0), 0));
-    const workoutTotal = Math.round(workoutDay.reduce((sum, e) => sum + (e.calories || 0), 0));
+    const sumCal = (rows) => Math.round(rows.reduce((sum, e) => sum + (e.calories || 0), 0));
+    const foodConfirmed = sumCal(foodDay.filter(e => !e.pending));
+    const foodPending = sumCal(foodDay.filter(e => e.pending));
+    const workoutConfirmed = sumCal(workoutDay.filter(e => !e.pending));
+    const workoutPending = sumCal(workoutDay.filter(e => e.pending));
     const targetInfo = await computeMaintenanceTarget(currentDate);
     const target = targetInfo?.targetKcal ?? null;
     const rolling = target ? await computeRollingDeficit(currentDate) : null;
 
-    renderCalorieTotal({ foodTotal, workoutTotal, target, rolling });
+    renderCalorieTotal({ foodConfirmed, foodPending, workoutConfirmed, workoutPending, target, rolling });
     els.calTotal.hidden = false;
   } else {
     els.calTotal.hidden = true;
@@ -1685,27 +1764,30 @@ async function computeRollingDeficit(date, windowDays = 7) {
   return { avgDaily: sum / used, daysUsed: used };
 }
 
-function buildCalRing(progress) {
-  // progress: 0..1 of ring filled. Returns the .cal-ring wrapper.
+function buildCalRing(confirmedProgress, pendingProgress = 0) {
+  // confirmedProgress: 0..1 of the solid arc. pendingProgress: a faded segment
+  // continuing where the solid arc ends (for planned food). Returns .cal-ring.
+  const SVGNS = 'http://www.w3.org/2000/svg';
   const RADIUS = 44;
   const CIRC = 2 * Math.PI * RADIUS;
-  const clamped = Math.max(0, Math.min(1, progress));
-  const offset = CIRC * (1 - clamped);
+  const confirmed = Math.max(0, Math.min(1, confirmedProgress));
+  const confirmedLen = CIRC * confirmed;
+  const offset = CIRC - confirmedLen;
 
   const wrap = document.createElement('div');
   wrap.className = 'cal-ring';
 
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const svg = document.createElementNS(SVGNS, 'svg');
   svg.setAttribute('viewBox', '0 0 104 104');
   svg.setAttribute('aria-hidden', 'true');
 
-  const track = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  const track = document.createElementNS(SVGNS, 'circle');
   track.setAttribute('class', 'cal-ring-track');
   track.setAttribute('cx', '52');
   track.setAttribute('cy', '52');
   track.setAttribute('r', String(RADIUS));
 
-  const fill = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  const fill = document.createElementNS(SVGNS, 'circle');
   fill.setAttribute('class', 'cal-ring-fill');
   fill.setAttribute('cx', '52');
   fill.setAttribute('cy', '52');
@@ -1715,6 +1797,21 @@ function buildCalRing(progress) {
 
   svg.append(track, fill);
 
+  // Planned (pending) food draws a faded arc starting where the solid arc ends,
+  // clamped so the two arcs together never exceed the full ring.
+  const pending = Math.max(0, Math.min(1 - confirmed, pendingProgress));
+  if (pending > 0) {
+    const pendingLen = CIRC * pending;
+    const pendingArc = document.createElementNS(SVGNS, 'circle');
+    pendingArc.setAttribute('class', 'cal-ring-pending');
+    pendingArc.setAttribute('cx', '52');
+    pendingArc.setAttribute('cy', '52');
+    pendingArc.setAttribute('r', String(RADIUS));
+    pendingArc.setAttribute('stroke-dasharray', `${pendingLen} ${CIRC}`);
+    pendingArc.setAttribute('stroke-dashoffset', String(-confirmedLen));
+    svg.append(pendingArc);
+  }
+
   const inner = document.createElement('div');
   inner.className = 'cal-ring-inner';
 
@@ -1722,7 +1819,7 @@ function buildCalRing(progress) {
   return { wrap, inner };
 }
 
-function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
+function renderCalorieTotal({ foodConfirmed, foodPending, workoutConfirmed, workoutPending, target, rolling }) {
   els.calTotal.replaceChildren();
   els.calTotal.classList.remove('is-under', 'is-over', 'is-muted', 'is-near');
 
@@ -1731,7 +1828,7 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
     const { wrap, inner } = buildCalRing(0);
     const hero = document.createElement('div');
     hero.className = 'cal-hero';
-    hero.textContent = foodTotal.toLocaleString();
+    hero.textContent = foodConfirmed.toLocaleString();
     const unit = document.createElement('div');
     unit.className = 'cal-hero-unit';
     unit.textContent = 'kcal';
@@ -1751,8 +1848,11 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
     return;
   }
 
-  const finalTarget = target + workoutTotal;
-  const remaining = finalTarget - foodTotal;
+  // Confirmed budget = maintenance + confirmed activity. The "to play with"
+  // number additionally nets out planned food and adds planned activity, so a
+  // pre-logged day shows what's really left.
+  const budget = target + workoutConfirmed;
+  const remaining = budget + workoutPending - foodConfirmed - foodPending;
   const todayDeficit = remaining >= 0;
 
   // Two independent signals: the hero number reflects TODAY (caution colour when it
@@ -1771,8 +1871,9 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
 
   els.calTotal.classList.add(rollingGood ? 'is-under' : 'is-near');
 
-  const progress = finalTarget > 0 ? foodTotal / finalTarget : 0;
-  const { wrap, inner } = buildCalRing(progress);
+  const progressConfirmed = budget > 0 ? foodConfirmed / budget : 0;
+  const progressPending = budget > 0 ? foodPending / budget : 0;
+  const { wrap, inner } = buildCalRing(progressConfirmed, progressPending);
 
   inner.classList.add(todayDeficit ? 'is-deficit' : 'is-surplus');
   const hero = document.createElement('div');
@@ -1791,10 +1892,11 @@ function renderCalorieTotal({ foodTotal, workoutTotal, target, rolling }) {
     : rollingOver ? 'over this week'
     : 'holding steady';
 
-  const workoutPart = workoutTotal > 0 ? ` (+${workoutTotal.toLocaleString()} activity)` : '';
+  const workoutPart = workoutConfirmed > 0 ? ` (+${workoutConfirmed.toLocaleString()} activity)` : '';
+  const plannedPart = foodPending > 0 ? ` · +${foodPending.toLocaleString()} planned` : '';
   const detail = document.createElement('div');
   detail.className = 'cal-detail';
-  detail.textContent = `eaten ${foodTotal.toLocaleString()} · maintenance ${target.toLocaleString()}${workoutPart}`;
+  detail.textContent = `eaten ${foodConfirmed.toLocaleString()} · maintenance ${target.toLocaleString()}${workoutPart}${plannedPart}`;
   text.append(status, detail);
 
   // Warm framing keyed off today + the week — what stops a big day feeling like failure.
@@ -1852,8 +1954,10 @@ async function loadProgressRange(startDate, endDate) {
     .filter(e => e.type === 'weight')
     .sort((a, b) => a.timestamp - b.timestamp);
   const morningWeightEntries = weightEntries.filter(e => e.timeCategory === 'Morning');
-  const foodEntries = allEntries.filter(e => e.type === 'food');
-  const workoutEntries = allEntries.filter(e => e.type === 'workout');
+  // Plans never count toward history/charts/rolling stats (computeRollingDeficit
+  // inherits this exclusion via loadProgressRange).
+  const foodEntries = allEntries.filter(e => e.type === 'food' && !e.pending);
+  const workoutEntries = allEntries.filter(e => e.type === 'workout' && !e.pending);
 
   const days = [];
   let d = startOfDay(new Date(startDate));

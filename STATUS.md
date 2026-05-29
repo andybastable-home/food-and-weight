@@ -1,7 +1,7 @@
 # Status
 
 ## Current state
-**v1.3.1 shipped.** No work in flight. Latest: "Copy to today" button on a food entry's selected (delete-confirm) state → prefilled today's form, `calorie_source='copied'`, no fresh AI call.
+**v1.4.0 shipped.** No work in flight. Latest: **pending (planned-ahead) entries** — picking a future-on-today time-category pill makes a food/activity entry a tentative plan (button reads "Plan"); it stays local, never syncs, and is excluded from all real totals/history/frequents until **Confirm** promotes it to a real entry (via the prefilled form). Ring shows a faded arc for planned food; "calories to play with" nets planned food/activity. Bundled in: retuned category boundaries (Breakfast 04–09, Morning 09–12, Dinner 17–19, Evening 19–04).
 
 1.x covers the full feature set: food/activity/measurements logging, local Dexie store, one-phone↔one-sheet Google Sheets sync (schema v5), AI calorie/effort estimation (Gemini) with stored reasoning, local fuzzy repeat-food chip, rolling-average maintenance target, Progress charts (weight + trend, calories vs target, net balance), day-type header differentiation, swipe-to-change-day, and the deficit/surplus calorie tile.
 
