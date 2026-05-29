@@ -690,15 +690,25 @@ a.btn {
 .entry.category-dinner::before    { background: hsl(260 45% 62%); }
 .entry.category-evening::before   { background: hsl(220 45% 58%); }
 
-/* Pending (planned) entries read as a draft: clear dotted outline, no colour
-   fill (the .entry.category-* selector below sets the wash, so match its
-   specificity to strip it). */
+/* Pending (planned) entries read as a draft: dotted outline, muted text, and
+   only a whisper of the category colour — fainter than a real entry's wash so
+   the two never blur together. Per-category rules below mix the pastel toward
+   the surface; they out-specify the .entry.category-* wash above. */
 .entry.entry-pending {
-  background: transparent;
   border: 2px dotted var(--color-text-muted);
   box-shadow: none;
+  background: var(--color-surface);
 }
+.entry.entry-pending,
+.entry.entry-pending .entry-row { color: var(--color-text-muted); }
 .entry-pending::before { display: none; }
+
+.entry.entry-pending.category-breakfast { background: color-mix(in srgb, var(--color-breakfast) 40%, var(--color-surface)); }
+.entry.entry-pending.category-morning   { background: color-mix(in srgb, var(--color-morning) 40%, var(--color-surface)); }
+.entry.entry-pending.category-lunch     { background: color-mix(in srgb, var(--color-lunch) 40%, var(--color-surface)); }
+.entry.entry-pending.category-afternoon { background: color-mix(in srgb, var(--color-afternoon) 40%, var(--color-surface)); }
+.entry.entry-pending.category-dinner    { background: color-mix(in srgb, var(--color-dinner) 40%, var(--color-surface)); }
+.entry.entry-pending.category-evening   { background: color-mix(in srgb, var(--color-evening) 40%, var(--color-surface)); }
 
 .entry-row {
   width: 100%;
