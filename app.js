@@ -379,6 +379,7 @@ async function handleAdd(type, formData) {
 
   const id = await db.entries.add(entry);
   if (type === 'food') rebuildFrequentFoods();
+  if (type === 'workout') rebuildFrequentWorkouts();
   const savedEntry = { ...entry, id };
   if (typeof syncEntriesToSheet === 'function') {
     syncEntriesToSheet([savedEntry])
@@ -578,19 +579,21 @@ async function requestWorkoutEstimation(inputText, effort) {
 }
 
 // ------------------------------------------------------------------
-// Frequent-items index (local fuzzy match for repeat foods)
+// Frequent-items index (local fuzzy match for repeat foods + workouts)
 // ------------------------------------------------------------------
 let frequentFoods = [];
 let frequentHaystack = [];
 let frequentIndexBy = [];
+let frequentWorkouts = [];
+let frequentWorkoutsHaystack = [];
+let frequentWorkoutsIndexBy = [];
 const uf = new uFuzzy({ intraMode: 1, intraIns: 1, intraSub: 1, intraTrn: 1, intraDel: 1 });
 const FREQUENT_THRESHOLD = 3;
 const MIN_QUERY_LEN = 3;
 
-async function rebuildFrequentFoods() {
-  const all = await db.entries.where('type').equals('food').toArray();
+function buildFrequentItems(entries) {
   const groups = new Map();
-  for (const entry of all) {
+  for (const entry of entries) {
     const canonicalTitle = (entry.aiSuggestedTitle || entry.text || '').trim();
     const canonicalKcal = entry.aiSuggestedCalories ?? entry.calories;
     if (!canonicalTitle || canonicalKcal == null) continue;
@@ -621,9 +624,23 @@ async function rebuildFrequentFoods() {
   }
 
   items.sort((a, b) => b.lastTs - a.lastTs);
+  return items;
+}
+
+async function rebuildFrequentFoods() {
+  const all = await db.entries.where('type').equals('food').toArray();
+  const items = buildFrequentItems(all);
   frequentFoods = items;
   frequentHaystack = items.map((item) => item.title.toLowerCase() + ' | ' + item.rawInputs.join(' | '));
   frequentIndexBy = items.map((_, i) => i);
+}
+
+async function rebuildFrequentWorkouts() {
+  const all = await db.entries.where('type').equals('workout').toArray();
+  const items = buildFrequentItems(all);
+  frequentWorkouts = items;
+  frequentWorkoutsHaystack = items.map((item) => item.title.toLowerCase() + ' | ' + item.rawInputs.join(' | '));
+  frequentWorkoutsIndexBy = items.map((_, i) => i);
 }
 
 function matchFrequent(query) {
@@ -631,6 +648,13 @@ function matchFrequent(query) {
   const [idxs] = uf.search(frequentHaystack, query, 0, 1000);
   if (!idxs || idxs.length === 0) return null;
   return frequentFoods[frequentIndexBy[idxs[0]]];
+}
+
+function matchFrequentWorkout(query) {
+  if (!query || query.length < MIN_QUERY_LEN || !frequentWorkouts.length) return null;
+  const [idxs] = uf.search(frequentWorkoutsHaystack, query, 0, 1000);
+  if (!idxs || idxs.length === 0) return null;
+  return frequentWorkouts[frequentWorkoutsIndexBy[idxs[0]]];
 }
 
 // ------------------------------------------------------------------
@@ -1262,9 +1286,58 @@ function renderEntryForm() {
       form.appendChild(chipRow);
     } else {
       // workout branch
+      const workoutChipRow = document.createElement('div');
+      workoutChipRow.className = 'match-chip-row hidden';
+      const workoutChipBtn = document.createElement('button');
+      workoutChipBtn.type = 'button';
+      workoutChipBtn.className = 'match-chip';
+      const workoutChipTitle = document.createElement('span');
+      workoutChipTitle.className = 'match-chip-title';
+      const workoutChipKcal = document.createElement('span');
+      workoutChipKcal.className = 'match-chip-kcal';
+      workoutChipBtn.append(workoutChipTitle, workoutChipKcal);
+      workoutChipRow.appendChild(workoutChipBtn);
+
+      hideChip = () => workoutChipRow.classList.add('hidden');
+
+      let workoutChipDebounce = null;
+      function matchAndRenderWorkoutChip() {
+        const query = input.value.trim().toLowerCase();
+        if (query.length < MIN_QUERY_LEN || form.dataset.aiSuggestedTitle) {
+          hideChip();
+          return;
+        }
+        const match = matchFrequentWorkout(query);
+        if (!match) { hideChip(); return; }
+        workoutChipTitle.textContent = match.title;
+        workoutChipKcal.textContent = `${match.calories} kcal`;
+        workoutChipRow._match = match;
+        workoutChipRow.classList.remove('hidden');
+      }
+
+      input.addEventListener('input', () => {
+        clearTimeout(workoutChipDebounce);
+        workoutChipDebounce = setTimeout(matchAndRenderWorkoutChip, 200);
+      });
+
+      workoutChipBtn.addEventListener('click', () => {
+        const match = workoutChipRow._match;
+        if (!match) return;
+        form.dataset.rawInput = input.value.trim();
+        form.dataset.matchedTitle = match.title;
+        form.dataset.matchedCalories = String(match.calories);
+        form.dataset.matchedConfidence = match.confidence;
+        input.value = match.title;
+        caloriesInput.value = match.calories;
+        hideChip();
+        aiStatusLog.className = 'ai-status-log confidence-match';
+        aiStatusLog.textContent = `↩ Matched past entry (${match.count}×)`;
+      });
+
       form.appendChild(wrap);
       form.appendChild(aiStatusLog);
       form.appendChild(caloriesWrap);
+      form.appendChild(workoutChipRow);
     }
 
   } else {
@@ -2454,6 +2527,7 @@ function init() {
   initProgressPanel();
   initSkipOverlay();
   rebuildFrequentFoods();
+  rebuildFrequentWorkouts();
   refreshAll();
 }
 
