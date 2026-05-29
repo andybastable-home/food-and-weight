@@ -695,12 +695,16 @@ a.btn {
    the two never blur together. Per-category rules below mix the pastel toward
    the surface; they out-specify the .entry.category-* wash above. */
 .entry.entry-pending {
-  border: 2px dotted var(--color-text-muted);
+  border: 2px dotted color-mix(in srgb, var(--color-text-muted) 42%, transparent);
   box-shadow: none;
   background: var(--color-surface);
 }
-.entry.entry-pending,
-.entry.entry-pending .entry-row { color: var(--color-text-muted); }
+.entry.entry-pending .entry-text,
+.entry.entry-pending .entry-value,
+.entry.entry-pending .entry-calories {
+  color: var(--color-text-muted);
+  opacity: 0.68;
+}
 .entry-pending::before { display: none; }
 
 .entry.entry-pending.category-breakfast { background: color-mix(in srgb, var(--color-breakfast) 40%, var(--color-surface)); }
