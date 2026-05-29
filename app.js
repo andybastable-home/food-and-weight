@@ -1873,7 +1873,7 @@ function addChartGrid(svg, min, max) {
     svg.appendChild(svgEl('line', { x1: CP.l, y1: y.toFixed(1), x2: CHART_W - CP.r, y2: y.toFixed(1), class: 'chart-grid-line' }));
     const lbl = svgEl('text', { x: CP.l - 4, y: (y + 4).toFixed(1), class: 'chart-axis-label', 'text-anchor': 'end' });
     const absV = Math.abs(v);
-    lbl.textContent = absV >= 100 ? Math.round(v).toLocaleString() : (v % 1 === 0 ? String(v) : v.toFixed(1));
+    lbl.textContent = v % 1 !== 0 ? v.toFixed(1) : absV >= 1000 ? Math.round(v).toLocaleString() : String(v);
     svg.appendChild(lbl);
   }
 }
