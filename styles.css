@@ -690,12 +690,15 @@ a.btn {
 .entry.category-dinner::before    { background: hsl(260 45% 62%); }
 .entry.category-evening::before   { background: hsl(220 45% 58%); }
 
-/* Pending (planned) entries read as tentative: faded with a dashed outline. */
-.entry-pending {
-  opacity: 0.62;
-  border-style: dashed;
+/* Pending (planned) entries read as a draft: clear dotted outline, no colour
+   fill (the .entry.category-* selector below sets the wash, so match its
+   specificity to strip it). */
+.entry.entry-pending {
+  background: transparent;
+  border: 2px dotted var(--color-text-muted);
+  box-shadow: none;
 }
-.entry-pending::before { opacity: 0.5; }
+.entry-pending::before { display: none; }
 
 .entry-row {
   width: 100%;
