@@ -33,7 +33,7 @@
   --color-yest-tint: hsl(210 30% 97%);
 
   /* Time category colors */
-  --color-breakfast: hsl(40 60% 94%);
+  --color-breakfast: hsl(22 65% 93%);
   --color-morning: hsl(20 60% 94%);
   --color-lunch: hsl(120 40% 94%);
   --color-afternoon: hsl(200 50% 94%);
@@ -85,7 +85,7 @@
     --color-yest-tint: hsl(215 20% 14.5%);
 
     /* Time category colors (dark mode) */
-    --color-breakfast: hsl(40 30% 18%);
+    --color-breakfast: hsl(22 32% 17%);
     --color-morning: hsl(20 30% 18%);
     --color-lunch: hsl(120 20% 18%);
     --color-afternoon: hsl(200 30% 18%);
@@ -306,12 +306,20 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* Day context note — warm amber, Fraunces italic, centred.
-   Amber is deliberately absent from the rest of the token set so
-   this element immediately reads as "different / special". */
+/* Day context note — warm amber post-it, Fraunces italic, centred.
+   Overlaps the bottom of the date panel and sits right-offset, like
+   a post-it stuck onto the day. Amber lives nowhere else in the
+   token set so it reads as "different / special" at a glance. */
 .day-context-callout {
-  margin: var(--space-2) 0 0;
-  padding: var(--space-3) var(--space-5) var(--space-3);
+  /* Post-it overlap: pull up into the date panel, sit to the right */
+  position: relative;
+  z-index: 1;
+  margin-top: -14px;
+  margin-left: auto;
+  margin-right: var(--space-3);
+  width: 62%;
+
+  padding: var(--space-3) var(--space-4);
 
   font-family: var(--font-display);
   font-style: italic;
@@ -327,33 +335,21 @@ body {
   border: 1px solid hsl(38 55% 82%);
   border-radius: var(--radius-md);
 
+  /* Asymmetric shadow — heavier on left/bottom to sell the layering */
   box-shadow:
-    0 2px 10px hsl(38 70% 55% / 0.12),
-    0 1px 2px  hsl(38 60% 55% / 0.08),
+    -2px 4px 14px hsl(38 70% 45% / 0.18),
+    0 1px 3px hsl(38 60% 45% / 0.12),
     inset 0 1px 0 hsl(42 100% 99%);
 
+  transform: rotate(0.7deg);
   cursor: pointer;
   word-break: break-word;
   transition: transform 90ms ease, box-shadow 90ms ease;
-  position: relative;
-}
-
-/* Ornamental triple-dot header — no extra markup required */
-.day-context-callout::before {
-  content: "· · ·";
-  display: block;
-  font-family: var(--font);
-  font-style: normal;
-  font-size: 9px;
-  letter-spacing: 0.55em;
-  text-indent: 0.55em; /* visually centres the group */
-  color: hsl(38 40% 62%);
-  margin-bottom: 5px;
 }
 
 .day-context-callout:active {
-  transform: scale(0.985);
-  box-shadow: 0 1px 4px hsl(38 60% 55% / 0.1);
+  transform: rotate(0.7deg) scale(0.985);
+  box-shadow: -1px 2px 6px hsl(38 60% 45% / 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -362,12 +358,9 @@ body {
     background: linear-gradient(160deg, hsl(38 28% 14%) 0%, hsl(35 22% 12%) 100%);
     border-color: hsl(38 28% 24%);
     box-shadow:
-      0 2px 10px hsl(38 50% 10% / 0.5),
+      -2px 4px 14px hsl(38 40% 6% / 0.6),
+      0 1px 3px hsl(0 0% 0% / 0.3),
       inset 0 1px 0 hsl(38 30% 18%);
-  }
-
-  .day-context-callout::before {
-    color: hsl(38 28% 38%);
   }
 }
 
@@ -748,7 +741,7 @@ a.btn {
 
 /* Stronger same-hue left edge over the soft pastel category wash. */
 .entry::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
-.entry.category-breakfast::before { background: hsl(40 70% 55%); }
+.entry.category-breakfast::before { background: hsl(22 72% 56%); }
 .entry.category-morning::before   { background: hsl(20 70% 58%); }
 .entry.category-lunch::before     { background: hsl(120 38% 50%); }
 .entry.category-afternoon::before { background: hsl(200 60% 52%); }
