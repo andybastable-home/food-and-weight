@@ -633,7 +633,7 @@ async function migrateSheetV3ToV4() {
   const allEntries = await db.entries.toArray();
   const dateSet = new Set();
   for (const e of allEntries) {
-    if (e.type === 'skip_food') continue;
+    if (e.type === 'day_context') continue;
     dateSet.add(new Date(e.timestamp).toISOString().slice(0, 10));
   }
   const sortedDates = [...dateSet].sort();
