@@ -123,21 +123,22 @@ e.g. * I run at ~5:30/km pace
     </div>
   </div>
 
-  <!-- Skip-day overlay -->
-  <div id="skip-overlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-label="Skip food logging">
+  <!-- Day-context overlay -->
+  <div id="context-overlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-label="Day note">
     <div class="settings-panel">
       <div class="settings-header">
-        <span class="settings-title">Skip food logging today?</span>
+        <span class="settings-title" id="context-overlay-title">Add day note</span>
       </div>
       <div class="settings-body">
-        <p class="ai-config-hint">Add a brief note so your records show an intentional gap, not missing data.</p>
+        <p class="ai-config-hint">Add context for this day — e.g. giving blood, travelling, big event.</p>
         <div class="ai-config-section">
-          <label class="ai-config-label" for="skip-reason-input">Reason</label>
-          <input type="text" id="skip-reason-input" class="ai-config-input" maxlength="120" placeholder="e.g. birthday meal" autocomplete="off">
+          <label class="ai-config-label" for="context-input">Note</label>
+          <input type="text" id="context-input" class="ai-config-input" maxlength="120" placeholder="e.g. giving blood" autocomplete="off">
         </div>
         <div class="settings-sync">
-          <button id="skip-confirm" type="button" class="btn btn-primary">Skip the day</button>
-          <button id="skip-cancel" type="button" class="btn btn-ghost">Cancel</button>
+          <button id="context-save" type="button" class="btn btn-primary">Save</button>
+          <button id="context-delete" type="button" class="btn btn-ghost hidden">Delete</button>
+          <button id="context-cancel" type="button" class="btn btn-ghost">Cancel</button>
         </div>
       </div>
     </div>
@@ -151,6 +152,7 @@ e.g. * I run at ~5:30/km pace
       <div class="date-nav-label">
         <h1 id="date-label" class="date-nav-main">Today</h1>
         <p id="date-sub" class="date-nav-sub"></p>
+        <p id="day-context-label" class="date-nav-context hidden"></p>
       </div>
       <button id="next-day" class="date-nav-btn" type="button" aria-label="Next day">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
