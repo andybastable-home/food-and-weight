@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Food &amp; Weight — Style Guide</title>
+
+<!-- ==================================================================
+     AUTHORITATIVE STYLE GUIDE
+     ------------------------------------------------------------------
+     This file LINKS the real ./styles.css and renders real components
+     with their real class names. The shipped stylesheet is therefore the
+     single source of truth for every rule shown here — change a component
+     in styles.css and this guide reflects it automatically.
+
+     The ONLY thing mirrored below is the colour-token VALUES, and only so
+     the guide can show light + dark side-by-side regardless of the OS
+     theme (styles.css only declares dark tokens inside a
+     prefers-color-scheme media query, which can't be forced per element).
+     A self-check at the bottom compares this mirror against styles.css for
+     the current OS theme and shows a warning banner if they have drifted.
+
+     If you add or retune a token in styles.css, update the matching block
+     in `.sg .theme-light` / `.sg .theme-dark` below.
+     ================================================================== -->
+
+<link rel="preload" href="./assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./styles.css">
+
+<style>
+/* ------------------------------------------------------------------
+   MIRRORED COLOUR TOKENS (source of truth = styles.css :root + dark @media)
+   Scoped to theme wrappers so the guide can pin a theme per subtree
+   independent of the OS setting.
+------------------------------------------------------------------ */
+.sg .theme-light {
+  --color-bg: hsl(210 30% 98%);
+  --color-surface: hsl(0 0% 100%);
+  --color-surface-alt: hsl(210 25% 95%);
+  --color-text: hsl(220 18% 14%);
+  --color-text-muted: hsl(220 10% 45%);
+  --color-accent: hsl(205 80% 50%);
+  --color-accent-strong: hsl(210 75% 42%);
+  --color-accent-soft: hsl(205 85% 95%);
+  --color-border: hsl(220 14% 91%);
+  --color-shadow: hsl(220 30% 20% / 0.06);
+  --color-shadow-lg: hsl(220 30% 20% / 0.1);
+  --color-success: hsl(150 45% 42%);
+  --color-danger: hsl(2 65% 52%);
+  --color-danger-soft: hsl(2 70% 96%);
+  --color-warning: hsl(32 85% 48%);
+  --color-today-tint: hsl(205 85% 96.5%);
+  --color-yest-tint: hsl(210 30% 97%);
+  --color-breakfast: hsl(22 65% 93%);
+  --color-morning: hsl(20 60% 94%);
+  --color-lunch: hsl(120 40% 94%);
+  --color-afternoon: hsl(200 50% 94%);
+  --color-dinner: hsl(260 40% 94%);
+  --color-evening: hsl(220 40% 92%);
+  color-scheme: light;
+}
+.sg .theme-dark {
+  --color-bg: hsl(215 25% 9%);
+  --color-surface: hsl(215 22% 13%);
+  --color-surface-alt: hsl(215 18% 17%);
+  --color-text: hsl(210 25% 96%);
+  --color-text-muted: hsl(215 10% 64%);
+  --color-accent: hsl(205 75% 62%);
+  --color-accent-strong: hsl(205 80% 72%);
+  --color-accent-soft: hsl(210 35% 18%);
+  --color-border: hsl(220 12% 20%);
+  --color-shadow: hsl(0 0% 0% / 0.3);
+  --color-shadow-lg: hsl(0 0% 0% / 0.45);
+  --color-success: hsl(150 50% 55%);
+  --color-danger: hsl(2 70% 62%);
+  --color-danger-soft: hsl(2 30% 18%);
+  --color-warning: hsl(32 80% 60%);
+  --color-today-tint: hsl(210 38% 16%);
+  --color-yest-tint: hsl(215 20% 14.5%);
+  --color-breakfast: hsl(22 32% 17%);
+  --color-morning: hsl(20 30% 18%);
+  --color-lunch: hsl(120 20% 18%);
+  --color-afternoon: hsl(200 30% 18%);
+  --color-dinner: hsl(260 20% 18%);
+  --color-evening: hsl(220 30% 16%);
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------
+   Guide chrome — everything here is `sg`-prefixed so it never collides
+   with the app's classes. Overrides styles.css's `body` (later in source).
+------------------------------------------------------------------ */
+.sg, .sg * { box-sizing: border-box; }
+body.sg {
+  display: block;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font);
+  background: hsl(220 16% 94%);
+  color: hsl(220 18% 14%);
+  line-height: 1.5;
+}
+@media (prefers-color-scheme: dark) {
+  body.sg { background: hsl(220 18% 8%); color: hsl(210 20% 90%); }
+}
+
+.sg-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 22px;
+  background: hsl(220 20% 99% / 0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid hsl(220 14% 86%);
+}
+@media (prefers-color-scheme: dark) {
+  .sg-topbar { background: hsl(220 22% 11% / 0.86); border-bottom-color: hsl(220 14% 20%); }
+}
+.sg-topbar h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.sg-topbar .sg-ver {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: hsl(220 10% 45%);
+  background: hsl(220 16% 90%);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+@media (prefers-color-scheme: dark) { .sg-topbar .sg-ver { background: hsl(220 16% 18%); color: hsl(210 12% 60%); } }
+.sg-spacer { flex: 1; }
+
+.sg-toggle { display: inline-flex; gap: 4px; padding: 4px; background: hsl(220 16% 90%); border-radius: 999px; }
+@media (prefers-color-scheme: dark) { .sg-toggle { background: hsl(220 16% 18%); } }
+.sg-toggle button {
+  border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600;
+  color: hsl(220 10% 40%);
+  padding: 6px 14px; border-radius: 999px; min-height: 34px;
+}
+@media (prefers-color-scheme: dark) { .sg-toggle button { color: hsl(210 12% 62%); } }
+.sg-toggle button.is-active { background: hsl(0 0% 100%); color: hsl(205 75% 42%); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+@media (prefers-color-scheme: dark) { .sg-toggle button.is-active { background: hsl(220 20% 26%); color: hsl(205 75% 72%); } }
+
+.sg-main { max-width: 1180px; margin: 0 auto; padding: 28px 22px 120px; }
+.sg-lead { max-width: 760px; font-size: 15px; line-height: 1.6; color: inherit; }
+.sg-lead code, .sg-inline-code {
+  font-family: var(--font-mono); font-size: 0.86em;
+  background: hsl(220 16% 90%); padding: 1px 5px; border-radius: 5px;
+}
+@media (prefers-color-scheme: dark) { .sg-lead code, .sg-inline-code { background: hsl(220 16% 18%); } }
+
+.sg-toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 4px; }
+.sg-toc a {
+  font-size: 12px; font-weight: 600; text-decoration: none;
+  color: hsl(220 12% 38%); background: hsl(220 16% 90%);
+  padding: 5px 11px; border-radius: 999px;
+}
+.sg-toc a:hover { background: hsl(205 70% 88%); color: hsl(205 75% 32%); }
+@media (prefers-color-scheme: dark) {
+  .sg-toc a { background: hsl(220 16% 18%); color: hsl(210 12% 64%); }
+  .sg-toc a:hover { background: hsl(205 40% 26%); color: hsl(205 70% 78%); }
+}
+
+.sg-section { margin-top: 52px; scroll-margin-top: 72px; }
+.sg-section > h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 600; letter-spacing: -0.02em;
+  border-bottom: 2px solid hsl(205 80% 50%);
+  padding-bottom: 8px;
+  display: inline-block;
+}
+.sg-section > .sg-desc { margin: 12px 0 20px; max-width: 760px; font-size: 14px; line-height: 1.6; color: hsl(220 10% 42%); }
+@media (prefers-color-scheme: dark) { .sg-section > .sg-desc { color: hsl(210 10% 62%); } }
+.sg-sub { margin: 28px 0 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: hsl(220 10% 45%); }
+@media (prefers-color-scheme: dark) { .sg-sub { color: hsl(210 10% 60%); } }
+
+/* swatch grid */
+.sg-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.sg-swatch { border: 1px solid hsl(220 14% 86%); border-radius: 12px; overflow: hidden; background: hsl(0 0% 100%); }
+@media (prefers-color-scheme: dark) { .sg-swatch { background: hsl(220 18% 13%); border-color: hsl(220 14% 22%); } }
+.sg-swatch-chips { display: flex; height: 64px; }
+.sg-swatch-chips > div { flex: 1; display: flex; align-items: flex-end; justify-content: flex-start; padding: 5px 7px; }
+.sg-swatch-chips .lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.6; }
+.sg-swatch-meta { padding: 9px 11px; }
+.sg-swatch-meta .nm { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.sg-swatch-meta .desc { font-size: 11.5px; color: hsl(220 10% 45%); margin-top: 2px; line-height: 1.4; }
+@media (prefers-color-scheme: dark) { .sg-swatch-meta .desc { color: hsl(210 10% 60%); } }
+.sg-swatch-meta .vals { font-family: var(--font-mono); font-size: 10.5px; color: hsl(220 8% 52%); margin-top: 5px; display: flex; flex-direction: column; gap: 1px; }
+
+/* scale / spec tables */
+.sg-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sg-table th { text-align: left; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: hsl(220 10% 48%); padding: 0 12px 8px; font-weight: 700; }
+.sg-table td { padding: 11px 12px; border-top: 1px solid hsl(220 14% 88%); vertical-align: baseline; }
+@media (prefers-color-scheme: dark) { .sg-table td { border-top-color: hsl(220 14% 20%); } }
+.sg-table td.mono, .sg-table td .mono { font-family: var(--font-mono); font-size: 12.5px; }
+.sg-table .muted { color: hsl(220 10% 50%); }
+.sg-spec-sample { font-size: 18px; }
+
+.sg-bar { display: inline-block; height: 16px; background: hsl(205 80% 50%); border-radius: 3px; vertical-align: middle; }
+.sg-radius-demo { display: inline-block; width: 56px; height: 40px; background: hsl(205 80% 50%); border: 2px solid hsl(210 75% 38%); }
+
+/* component stages */
+.sg-stage { display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-start; }
+.sg-phone {
+  width: 412px; max-width: 100%;
+  border-radius: 30px; padding: 16px;
+  background: var(--color-bg); color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 18px 50px rgba(20,30,50,0.16);
+  display: flex; flex-direction: column; gap: var(--space-4);
+  font-family: var(--font);
+}
+.sg-phone.theme-dark { box-shadow: 0 18px 50px rgba(0,0,0,0.5); }
+.sg-phone-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: hsl(220 10% 50%); margin: 0 0 9px 4px; }
+.sg-frame { display: flex; flex-direction: column; }
+
+/* Keep the in-app full-screen panels contained within a phone frame */
+.sg-phone .settings-panel { min-height: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.sg-phone .settings-header { position: static; }
+.sg-phone .progress-range-chips { position: static; }
+
+.sg-callout { margin-top: 14px; padding: 12px 16px; border-radius: 10px; background: hsl(38 90% 94%); border: 1px solid hsl(38 70% 80%); font-size: 13px; line-height: 1.55; color: hsl(30 40% 28%); }
+.sg-callout.warn { background: hsl(2 70% 95%); border-color: hsl(2 60% 82%); color: hsl(2 45% 38%); }
+.sg-callout code { font-family: var(--font-mono); font-size: 0.86em; }
+@media (prefers-color-scheme: dark) {
+  .sg-callout { background: hsl(38 30% 16%); border-color: hsl(38 30% 28%); color: hsl(38 50% 78%); }
+  .sg-callout.warn { background: hsl(2 30% 16%); border-color: hsl(2 30% 30%); color: hsl(2 60% 78%); }
+}
+
+.sg-note { font-size: 12.5px; color: hsl(220 10% 48%); margin: 6px 0 0 4px; line-height: 1.5; }
+@media (prefers-color-scheme: dark) { .sg-note { color: hsl(210 10% 60%); } }
+
+.sg-hidden-probe { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+</style>
+</head>
+
+<body class="sg">
+
+<div class="sg-topbar">
+  <h1>Food &amp; Weight · Style Guide</h1>
+  <span class="sg-ver" id="sg-ver">styles.css</span>
+  <span class="sg-spacer"></span>
+  <div class="sg-toggle" id="sg-toggle" role="group" aria-label="Theme preview">
+    <button data-theme="light">Light</button>
+    <button data-theme="dark">Dark</button>
+    <button data-theme="both" class="is-active">Both</button>
+  </div>
+</div>
+
+<main class="sg-main">
+
+  <p class="sg-lead">
+    The authoritative reference for this app's look and feel. It <strong>links the live
+    <code>./styles.css</code></strong> and renders real components with their real class names, so
+    whatever ships is exactly what you see here. Use it two ways: (1) read the tokens, type scale and
+    spacing below before inventing new values — reuse beats adding; (2) copy a component's markup
+    straight from this page as the scaffold for a new feature or a visual prototype, then restyle only
+    what genuinely needs to differ. Designed and checked at <strong>412&nbsp;px portrait</strong>
+    (Pixel&nbsp;8a installed PWA) — the only real deployment target.
+  </p>
+
+  <div id="sg-drift" class="sg-callout warn" style="display:none"></div>
+
+  <nav class="sg-toc">
+    <a href="#principles">Principles</a>
+    <a href="#color">Colour</a>
+    <a href="#type">Typography</a>
+    <a href="#space">Spacing</a>
+    <a href="#radii">Radii</a>
+    <a href="#elevation">Elevation</a>
+    <a href="#icons">Icons</a>
+    <a href="#header">Header &amp; nav</a>
+    <a href="#daycontext">Day context</a>
+    <a href="#forms">Entry form</a>
+    <a href="#feedback">AI feedback</a>
+    <a href="#entries">Entries</a>
+    <a href="#calorie">Calorie tile</a>
+    <a href="#pace">Pace tile</a>
+    <a href="#buttons">Buttons</a>
+    <a href="#settings">Settings</a>
+    <a href="#charts">Charts</a>
+    <a href="#states">Empty / status</a>
+  </nav>
+
+  <!-- ============================== PRINCIPLES ============================== -->
+  <section class="sg-section" id="principles">
+    <h2>Design principles</h2>
+    <p class="sg-desc">Non-negotiables that every screen inherits. These shape tone and layout as much as the tokens do.</p>
+    <table class="sg-table">
+      <tbody>
+        <tr><td style="width:200px"><strong>One user, one phone</strong></td><td>Built solely for Andy on a Pixel&nbsp;8a. No accounts, onboarding, empty-state copy for strangers, or multi-device logic. Hard-coded personal assumptions are preferred over configurability.</td></tr>
+        <tr><td><strong>Touch-first, thumb-reach</strong></td><td>Tap targets ≥&nbsp;44&nbsp;px. No hover-only affordances, no right-click menus. Primary actions sit low on the screen.</td></tr>
+        <tr><td><strong>Humane, not punitive</strong></td><td>Progress UX encourages rather than scolds. Avoid alarm-red and brittle single-day swings. Over-target reads as "today went over", never "failure".</td></tr>
+        <tr><td><strong>Words of affirmation</strong></td><td>Pair numbers with warm, encouraging copy (see <span class="sg-inline-code">.cal-affirm</span>) — never bare figures alone.</td></tr>
+        <tr><td><strong>Accurate, never inflated</strong></td><td>Calorie estimates are unbiased best-guesses. Never pad "to be safe" — inflated numbers cause real distress.</td></tr>
+        <tr><td><strong>Numbers are tabular</strong></td><td>Anything numeric uses <span class="sg-inline-code">font-variant-numeric: tabular-nums</span> so digits don't jitter as they change.</td></tr>
+        <tr><td><strong>Offline is normal</strong></td><td>Flaky network is the default assumption; anything touching sync must degrade gracefully.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================== COLOUR ============================== -->
+  <section class="sg-section" id="color">
+    <h2>Colour tokens</h2>
+    <p class="sg-desc">
+      Every colour is an HSL custom property defined once in <code class="sg-inline-code">:root</code> (light) and overridden in a
+      <code class="sg-inline-code">prefers-color-scheme: dark</code> block. Reference tokens by variable — never hard-code a hex.
+      Swatches below are read live; left chip = light, right chip = dark.
+    </p>
+
+    <h3 class="sg-sub">Surfaces &amp; text</h3>
+    <div class="sg-swatches" data-group="core"></div>
+
+    <h3 class="sg-sub">Accent &amp; semantic</h3>
+    <div class="sg-swatches" data-group="semantic"></div>
+
+    <h3 class="sg-sub">Day-type tints</h3>
+    <div class="sg-swatches" data-group="daytype"></div>
+
+    <h3 class="sg-sub">Time-of-day categories</h3>
+    <p class="sg-note">Each meal entry gets a soft pastel wash (the token) plus a stronger same-hue 3&nbsp;px left edge (hard-coded in <span class="sg-inline-code">.entry.category-*::before</span>).</p>
+    <div class="sg-swatches" data-group="category"></div>
+
+    <div class="sg-callout">
+      <strong>Non-token accents to know about.</strong> A few intentional one-offs live outside the token set:
+      the day-context "note" uses a <strong>rose</strong> rule (<code>hsl(342 52% 52%)</code> light / <code>hsl(342 48% 60%)</code> dark)
+      with a darker eyebrow ink — rose appears nowhere else, so it reads as "special". AI-confidence colours
+      (<code>.ai-status-log.confidence-*</code>) and the entry left-edge hues are also literal HSL. If you find yourself
+      reaching for a new accent, check these first.
+    </div>
+  </section>
+
+  <!-- ============================== TYPOGRAPHY ============================== -->
+  <section class="sg-section" id="type">
+    <h2>Typography</h2>
+    <p class="sg-desc">
+      Two families. <strong>Fraunces</strong> (<code class="sg-inline-code">--font-display</code>, a variable serif with optical sizing)
+      carries every heading, the brand, big numbers and the day-context note — it gives the app its warm, journal-like character.
+      Everything else is the <strong>system sans</strong> (<code class="sg-inline-code">--font</code>). A <strong>monospace</strong>
+      (<code class="sg-inline-code">--font-mono</code>) is reserved for raw/technical text (diet profile, sync log).
+      Set <span class="sg-inline-code">font-variation-settings: "opsz" N</span> on Fraunces to match the optical size to the rendered px.
+    </p>
+
+    <h3 class="sg-sub">Families</h3>
+    <table class="sg-table"><tbody id="sg-fonts"></tbody></table>
+
+    <h3 class="sg-sub">Type scale (as used in components)</h3>
+    <table class="sg-table">
+      <thead><tr><th>Specimen</th><th>Role / class</th><th>Size</th><th>Weight</th><th>Tracking · extras</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sg-spec-sample" style="font-family:var(--font-display);font-weight:600;letter-spacing:-0.025em;font-variation-settings:'opsz' 72;font-variant-numeric:tabular-nums">1,540</span></td><td>Calorie hero · <span class="mono">.cal-hero</span></td><td>30px</td><td>600</td><td>-0.025em · opsz 72 · tabular</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-family:var(--font-display);font-weight:600;letter-spacing:-0.02em;font-variation-settings:'opsz' 60">Today</span></td><td>Date title · <span class="mono">.date-nav-main</span></td><td>22px</td><td>600</td><td>-0.02em · opsz 60</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-family:var(--font-display);font-weight:600;letter-spacing:-0.015em;font-variation-settings:'opsz' 36">Settings</span></td><td>Panel / status title · <span class="mono">.settings-title</span>, <span class="mono">.cal-status</span></td><td>20px</td><td>600</td><td>-0.015em · opsz 36</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-family:var(--font-display);font-weight:600;letter-spacing:-0.015em;font-variation-settings:'opsz' 36">Food &amp; Weight</span></td><td>Brand · <span class="mono">.brand-name</span></td><td>19px</td><td>600</td><td>-0.015em · opsz 36</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-family:var(--font-display);font-style:italic;font-weight:400;font-variation-settings:'opsz' 30">giving blood</span></td><td>Day note · <span class="mono">.day-context-callout</span></td><td>19px</td><td>400 <em>italic</em></td><td>opsz 30</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-family:var(--font-display);font-weight:600;letter-spacing:-0.01em">This week</span></td><td>Pace title · <span class="mono">.pace-section-title</span></td><td>17px</td><td>600</td><td>-0.01em</td></tr>
+        <tr><td><span class="sg-spec-sample">Chicken &amp; salad wrap</span></td><td>Input / entry body · <span class="mono">.entry-input</span>, <span class="mono">.entry-row</span></td><td>17 / 16px</td><td>400</td><td>line-height 1.5</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-size:15px;font-weight:600">Save</span></td><td>Button · <span class="mono">.btn</span></td><td>15px</td><td>600</td><td>-0.005em</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-size:14px;font-weight:600">Activity</span></td><td>Tab · <span class="mono">.tab</span></td><td>14px</td><td>600</td><td>—</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">Breakfast</span></td><td>Group header · <span class="mono">.category-header</span></td><td>12px</td><td>700</td><td>0.08em · uppercase</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">AI Estimation</span></td><td>Section label · <span class="mono">.settings-section-title</span>, <span class="mono">.chart-label</span></td><td>11px</td><td>700</td><td>0.08em · uppercase</td></tr>
+        <tr><td><span class="sg-spec-sample" style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase">left</span></td><td>Micro unit · <span class="mono">.cal-hero-unit</span></td><td>10px</td><td>700</td><td>0.12em · uppercase</td></tr>
+        <tr><td><span class="sg-spec-sample mono" style="font-size:13px">200ml oat milk ≈ 50 kcal</span></td><td>Raw / technical · <span class="mono">.ai-config-textarea</span></td><td>14px</td><td>400</td><td>monospace · line-height 1.6</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================== SPACING ============================== -->
+  <section class="sg-section" id="space">
+    <h2>Spacing scale</h2>
+    <p class="sg-desc">An 8-point-ish scale (with a 4&nbsp;px base step). Compose padding and gaps from these — avoid arbitrary pixel values. Read live from <code class="sg-inline-code">:root</code>.</p>
+    <table class="sg-table">
+      <thead><tr><th>Token</th><th>Value</th><th>Scale</th><th>Typical use</th></tr></thead>
+      <tbody id="sg-space"></tbody>
+    </table>
+  </section>
+
+  <!-- ============================== RADII ============================== -->
+  <section class="sg-section" id="radii">
+    <h2>Corner radii</h2>
+    <p class="sg-desc">Four steps. Cards/tiles use <span class="sg-inline-code">--radius-lg</span>; inner controls and small cards use <span class="sg-inline-code">--radius-md</span>; pills/chips and the ring text use <span class="sg-inline-code">--radius-pill</span>.</p>
+    <table class="sg-table">
+      <thead><tr><th>Token</th><th>Value</th><th>Sample</th><th>Typical use</th></tr></thead>
+      <tbody id="sg-radii"></tbody>
+    </table>
+  </section>
+
+  <!-- ============================== ELEVATION ============================== -->
+  <section class="sg-section" id="elevation">
+    <h2>Elevation</h2>
+    <p class="sg-desc">
+      Shadows are built from two tokens — <span class="sg-inline-code">--color-shadow</span> and
+      <span class="sg-inline-code">--color-shadow-lg</span> — kept deliberately soft. The hero tiles layer a tight contact
+      shadow with a wide, very faint ambient one. Don't introduce new shadow recipes; reuse a level below.
+    </p>
+    <table class="sg-table">
+      <thead><tr><th>Level</th><th>Recipe</th><th>Used by</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Resting card</strong></td><td class="mono">0 1px 3px var(--color-shadow)</td><td>.date-nav, .tabs</td></tr>
+        <tr><td><strong>Subtle</strong></td><td class="mono">0 1px 2px var(--color-shadow)</td><td>.entry</td></tr>
+        <tr><td><strong>Raised tile</strong></td><td class="mono">0 1px 3px var(--color-shadow), 0 10px 30px var(--color-shadow)</td><td>.calories-total</td></tr>
+        <tr><td><strong>Floating tile</strong></td><td class="mono">0 1px 3px var(--color-shadow), 0 8px 24px var(--color-shadow)</td><td>.pace-tile</td></tr>
+        <tr><td><strong>Lifted (editing)</strong></td><td class="mono">0 4px 16px var(--color-shadow-lg)</td><td>.entry-editing</td></tr>
+        <tr><td><strong>Primary glow</strong></td><td class="mono">0 2px 8px hsl(205 80% 50% / 0.28)</td><td>.btn-primary</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================== ICONS ============================== -->
+  <section class="sg-section" id="icons">
+    <h2>Iconography</h2>
+    <p class="sg-desc">
+      UI chrome icons are inline SVG, line style: <span class="sg-inline-code">fill:none</span>,
+      <span class="sg-inline-code">stroke:currentColor</span>, <span class="sg-inline-code">stroke-width:2</span> (2.2 for the
+      chevrons), round caps and joins, on a 24×24 viewBox rendered at 20–22&nbsp;px. They inherit
+      <span class="sg-inline-code">--color-text-muted</span> in icon buttons. Emoji (✨ AI, 📷 camera) are used as
+      lightweight action glyphs inside inputs — not for chrome.
+    </p>
+  </section>
+
+  <!-- ============================== COMPONENTS ============================== -->
+  <!-- Component demos are authored once as <template>s and cloned into the
+       active theme frame(s) by JS so they stay DRY across Light/Dark/Both. -->
+
+  <section class="sg-section" id="header">
+    <h2>Header &amp; date navigation</h2>
+    <p class="sg-desc">App header (brand + icon actions) and the date pager. The pager differentiates day type with a left accent rail and tint: <strong>today</strong> is brightest (accent rail + pip), <strong>yesterday</strong> fainter, <strong>past</strong> neutral. Future days are reached with the right chevron; on today it's disabled.</p>
+    <div class="sg-stage" data-demo="header"></div>
+  </section>
+
+  <section class="sg-section" id="daycontext">
+    <h2>Day context note</h2>
+    <p class="sg-desc">An optional one-line annotation for a day (e.g. "giving blood", "travelling"). Styled as a journal margin note: Fraunces italic, inset from the left with a rose rule and an uppercase eyebrow (both injected via CSS <span class="sg-inline-code">::before</span>). Tapping it opens the edit overlay.</p>
+    <div class="sg-stage" data-demo="daycontext"></div>
+  </section>
+
+  <section class="sg-section" id="forms">
+    <h2>Entry form &amp; inputs</h2>
+    <p class="sg-desc">The Food form expands to: free-text item → calories field with ✨ (AI estimate) and 📷 (photo) → time-category pills → Save. Pills use real radios so the checked wash comes from <span class="sg-inline-code">:has(.category-radio:checked)</span>. On <em>today</em>, picking a future time category turns the pill dashed (<span class="sg-inline-code">.category-pill-future</span>) — it plans rather than logs. Measurements use a labelled row with a unit suffix.</p>
+    <div class="sg-stage" data-demo="forms"></div>
+  </section>
+
+  <section class="sg-section" id="feedback">
+    <h2>AI estimate feedback</h2>
+    <p class="sg-desc">After an estimate the <span class="sg-inline-code">.ai-status-log</span> reports confidence with a colour band (excellent / moderate / low / error), or a <span class="sg-inline-code">.match-chip</span> offers a remembered local match to one-tap reuse. Keep this copy factual and calm.</p>
+    <div class="sg-stage" data-demo="feedback"></div>
+  </section>
+
+  <section class="sg-section" id="entries">
+    <h2>Entries list</h2>
+    <p class="sg-desc">Food entries are grouped by time-of-day under <span class="sg-inline-code">.category-header</span> rules. Each <span class="sg-inline-code">.entry</span> carries its category wash + left edge. <strong>Planned</strong> (future) items render as a dashed, muted draft (<span class="sg-inline-code">.entry-pending</span>). Weight/waist entries show a numeric <span class="sg-inline-code">.entry-value</span> instead of calories.</p>
+    <div class="sg-stage" data-demo="entries"></div>
+  </section>
+
+  <section class="sg-section" id="calorie">
+    <h2>Calorie tile — all states</h2>
+    <p class="sg-desc">
+      The day's hero. A progress ring + headline number + status + detail, with an affirming line. Ring stroke follows
+      the <em>rolling week</em> (so a single big day never flashes failure), while the centre number's colour reflects
+      <em>today</em> only — green on a deficit, red on a surplus. States: <span class="sg-inline-code">is-under</span>,
+      <span class="sg-inline-code">is-over</span>, <span class="sg-inline-code">is-near</span> (within ±150), <span class="sg-inline-code">is-muted</span> (no maintenance estimate yet).
+      Planned food extends a faded arc (<span class="sg-inline-code">.cal-ring-pending</span>).
+    </p>
+    <div class="sg-stage" data-demo="calorie"></div>
+  </section>
+
+  <section class="sg-section" id="pace">
+    <h2>Weekly pace tile</h2>
+    <p class="sg-desc">On the Progress view: how the week is tracking against the weekly goal. Bands map to encouraging language and colour — <span class="sg-inline-code">is-great</span> (glows), <span class="sg-inline-code">is-steady</span>, <span class="sg-inline-code">is-holding</span>, <span class="sg-inline-code">is-gaining</span>, <span class="sg-inline-code">is-muted</span>. Never alarmist.</p>
+    <div class="sg-stage" data-demo="pace"></div>
+  </section>
+
+  <section class="sg-section" id="buttons">
+    <h2>Buttons &amp; pills</h2>
+    <p class="sg-desc">Primary (gradient, the one call to action), ghost (secondary), danger (destructive, soft until hover). All ≥&nbsp;48&nbsp;px tall and press with a subtle scale. Range chips and category pills round out the interactive set.</p>
+    <div class="sg-stage" data-demo="buttons"></div>
+  </section>
+
+  <section class="sg-section" id="settings">
+    <h2>Settings &amp; panels</h2>
+    <p class="sg-desc">Full-screen overlays share <span class="sg-inline-code">.settings-panel</span> chrome: sticky header with a title and a primary "Save &amp; Close", then stacked sections with uppercase labels, inputs, a mono textarea for profiles, and a hint line. Sync status uses <span class="sg-inline-code">.sync-status.is-ok / .is-error / .is-info</span>.</p>
+    <div class="sg-stage" data-demo="settings"></div>
+  </section>
+
+  <section class="sg-section" id="charts">
+    <h2>Progress charts</h2>
+    <p class="sg-desc">
+      Hand-built SVG on a 360×190 canvas. Weight: faint raw line (<span class="sg-inline-code">.chart-line-weight</span>) under a
+      bold rolling-average trend (<span class="sg-inline-code">.chart-line-avg</span>) with a soft area fill and end dots.
+      Net-balance bars are green under target / amber-red over (<span class="sg-inline-code">.chart-bar.is-under / .is-over / .is-neutral / .is-current</span>),
+      around a zero line. Axis text is <span class="sg-inline-code">.chart-axis-label</span>; the dashed
+      <span class="sg-inline-code">.chart-target-line</span> marks the goal.
+    </p>
+    <div class="sg-stage" data-demo="charts"></div>
+  </section>
+
+  <section class="sg-section" id="states">
+    <h2>Empty state &amp; range chips</h2>
+    <p class="sg-desc">Quiet, never naggy. The empty state is a single muted line. Range chips select chart windows (7d / 30d / 90d / All).</p>
+    <div class="sg-stage" data-demo="states"></div>
+  </section>
+
+</main>
+
+<!-- =================================================================
+     COMPONENT TEMPLATES — real app markup, real classes.
+     ================================================================= -->
+
+<template id="tpl-header">
+  <header class="app-header" style="margin:calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;border-radius:18px 18px 0 0">
+    <div class="brand">
+      <span class="brand-mark" style="width:32px;height:32px;display:inline-block;border-radius:8px;background:linear-gradient(145deg,var(--color-accent),var(--color-accent-strong))"></span>
+      <span class="brand-name">Food &amp; Weight</span>
+    </div>
+    <div class="header-actions">
+      <button class="settings-btn" type="button" aria-label="Progress charts"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="12" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="15" rx="1"/><rect x="18" y="2" width="4" height="19" rx="1"/></svg></button>
+      <button class="settings-btn" type="button" aria-label="Settings"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </div>
+  </header>
+  <section class="date-nav" data-daytype="today" aria-label="Date navigation">
+    <button class="date-nav-btn" type="button" aria-label="Previous day"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+    <div class="date-nav-label"><h1 class="date-nav-main">Today</h1><p class="date-nav-sub">Sat, 30 May</p></div>
+    <button class="date-nav-btn" type="button" aria-disabled="true" aria-label="Next day"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+  </section>
+  <section class="date-nav" data-daytype="yesterday" aria-label="Date navigation">
+    <button class="date-nav-btn" type="button"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+    <div class="date-nav-label"><h1 class="date-nav-main">Yesterday</h1><p class="date-nav-sub">Fri, 29 May</p></div>
+    <button class="date-nav-btn" type="button"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+  </section>
+  <section class="date-nav" data-daytype="past" aria-label="Date navigation">
+    <button class="date-nav-btn" type="button"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+    <div class="date-nav-label"><h1 class="date-nav-main">Tue, 26 May</h1></div>
+    <button class="date-nav-btn" type="button"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+  </section>
+  <nav class="tabs" role="tablist" aria-label="Entry type">
+    <button class="tab is-active" type="button" role="tab" aria-selected="true">Food</button>
+    <button class="tab" type="button" role="tab" aria-selected="false">Activity</button>
+    <button class="tab" type="button" role="tab" aria-selected="false">Measurements</button>
+  </nav>
+</template>
+
+<template id="tpl-daycontext">
+  <section class="date-nav" data-daytype="today" aria-label="Date navigation">
+    <button class="date-nav-btn" type="button"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+    <div class="date-nav-label"><h1 class="date-nav-main">Today</h1><p class="date-nav-sub">Sat, 30 May</p></div>
+    <button class="date-nav-btn" type="button" aria-disabled="true"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+  </section>
+  <div class="day-context-callout">Gave blood this morning</div>
+</template>
+
+<template id="tpl-forms">
+  <form class="entry-form">
+    <div class="entry-input-wrap">
+      <input class="entry-input" type="text" value="Chicken &amp; salad wrap" aria-label="Food">
+    </div>
+    <div class="entry-input-wrap" style="flex:1 0 100%">
+      <input class="entry-input" type="number" value="480" aria-label="Calories">
+      <button class="camera-button" type="button" aria-label="Photo">📷</button>
+      <button class="ai-button" type="button" aria-label="AI estimate">✨</button>
+    </div>
+    <div class="category-pills">
+      <label class="category-pill"><input class="category-radio" type="radio" name="sgcat"><span>Breakfast</span></label>
+      <label class="category-pill"><input class="category-radio" type="radio" name="sgcat" checked><span>Lunch</span></label>
+      <label class="category-pill category-pill-future"><input class="category-radio" type="radio" name="sgcat"><span>Dinner</span></label>
+    </div>
+    <button class="btn btn-primary" type="button">Save</button>
+  </form>
+  <div class="measurements-forms" style="margin-top:var(--space-4)">
+    <div class="measurement-form">
+      <label class="measurement-label">Weight</label>
+      <div class="measurement-row">
+        <div class="entry-input-wrap has-unit"><input class="entry-input" type="number" placeholder="0.0" aria-label="Weight"><span class="entry-input-unit">kg</span></div>
+        <button class="btn btn-primary" type="button">Save</button>
+      </div>
+    </div>
+    <div class="measurement-form">
+      <label class="measurement-label">Waist</label>
+      <div class="measurement-row">
+        <div class="entry-input-wrap has-unit"><input class="entry-input" type="number" placeholder="0.0" aria-label="Waist"><span class="entry-input-unit">cm</span></div>
+        <button class="btn btn-primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-feedback">
+  <div class="ai-status-log confidence-excellent">Estimated 480 kcal · high confidence — matches your usual chicken &amp; salad wrap.</div>
+  <div class="ai-status-log confidence-moderate">Estimated 620 kcal · moderate confidence — portion size assumed medium.</div>
+  <div class="ai-status-log confidence-low">Estimated ~750 kcal · low confidence — add detail (size, oil, sides) to sharpen this.</div>
+  <div class="ai-status-log confidence-error">Couldn't reach the estimator. Saved without calories — tap ✨ to retry.</div>
+  <div class="match-chip-row">
+    <button class="match-chip" type="button">
+      <span class="match-chip-title">Porridge with banana &amp; honey</span>
+      <span class="match-chip-kcal">320 kcal</span>
+    </button>
+  </div>
+</template>
+
+<template id="tpl-entries">
+  <ul class="entries-list">
+    <li class="category-header">Breakfast</li>
+    <li class="entry category-breakfast"><button class="entry-row" type="button"><span class="entry-time">08:10</span><span class="entry-text">Porridge with banana &amp; honey</span><span class="entry-calories">320 kcal</span></button></li>
+    <li class="category-header">Lunch</li>
+    <li class="entry category-lunch"><button class="entry-row" type="button"><span class="entry-time">13:05</span><span class="entry-text">Chicken &amp; salad wrap</span><span class="entry-calories">480 kcal</span></button></li>
+    <li class="entry category-lunch"><button class="entry-row" type="button"><span class="entry-time">13:20</span><span class="entry-text">Apple</span><span class="entry-calories">95 kcal</span></button></li>
+    <li class="category-header">Dinner</li>
+    <li class="entry entry-pending category-dinner"><button class="entry-row" type="button"><span class="entry-time">19:30</span><span class="entry-text">Salmon, rice &amp; greens (planned)</span><span class="entry-calories">620 kcal</span></button></li>
+  </ul>
+  <ul class="entries-list" style="margin-top:var(--space-4)">
+    <li class="entry"><button class="entry-row" type="button"><span class="entry-time">07:45</span><span class="entry-text">Weight</span><span class="entry-value">82.4 kg</span></button></li>
+  </ul>
+</template>
+
+<template id="tpl-calorie">
+  <div class="calories-total is-under" data-cap="Deficit — clearly under (rolling week)">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="99.5"/></svg><div class="cal-ring-inner is-deficit"><div class="cal-hero">685</div><div class="cal-hero-unit">left</div></div></div>
+    <div class="cal-text"><div class="cal-status">deficit</div><div class="cal-detail">eaten 1,515 · maintenance 2,200</div><div class="cal-affirm">Strong day — you're well ahead.</div></div>
+  </div>
+  <div class="calories-total is-under is-near" data-cap="Small deficit — within ±150">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="12.4"/></svg><div class="cal-ring-inner is-deficit"><div class="cal-hero">100</div><div class="cal-hero-unit">left</div></div></div>
+    <div class="cal-text"><div class="cal-status">small deficit</div><div class="cal-detail">eaten 2,100 · maintenance 2,200</div><div class="cal-affirm">Right on track.</div></div>
+  </div>
+  <div class="calories-total is-over is-near" data-cap="Small surplus — within ±150">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg><div class="cal-ring-inner is-surplus"><div class="cal-hero">100</div><div class="cal-hero-unit">over</div></div></div>
+    <div class="cal-text"><div class="cal-status">small surplus</div><div class="cal-detail">eaten 2,300 · maintenance 2,200</div><div class="cal-affirm">Barely over — easily evened out.</div></div>
+  </div>
+  <div class="calories-total is-over" data-cap="Surplus — clearly over">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg><div class="cal-ring-inner is-surplus"><div class="cal-hero">500</div><div class="cal-hero-unit">over</div></div></div>
+    <div class="cal-text"><div class="cal-status">surplus</div><div class="cal-detail">eaten 2,700 · maintenance 2,200 (+300 activity)</div><div class="cal-affirm">One bigger day — the week still looks good.</div></div>
+  </div>
+  <div class="calories-total" data-cap="Planned food — faded pending arc">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="180"/><circle class="cal-ring-pending" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="90"/></svg><div class="cal-ring-inner"><div class="cal-hero">1,180</div><div class="cal-hero-unit">eaten</div></div></div>
+    <div class="cal-text"><div class="cal-status">on plan</div><div class="cal-detail">eaten 1,180 · planned +620 · maintenance 2,200</div></div>
+  </div>
+  <div class="calories-total is-muted" data-cap="No maintenance estimate set">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="276.46"/></svg><div class="cal-ring-inner"><div class="cal-hero">1,850</div><div class="cal-hero-unit">kcal</div></div></div>
+    <div class="cal-text"><div class="cal-status">eaten today</div><div class="cal-detail">Set weight &amp; profile for a maintenance estimate</div></div>
+  </div>
+</template>
+
+<template id="tpl-pace">
+  <h3 class="pace-section-title">This week</h3>
+  <div class="pace-tile is-great" data-cap="is-great (glows)">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="60"/></svg><div class="cal-ring-inner"><div class="cal-hero">-0.6</div><div class="cal-hero-unit">kg/wk</div></div></div>
+    <div class="cal-text"><div class="cal-status">Smashing it</div><div class="cal-detail">Ahead of your 0.5 kg/week goal with room to spare.</div></div>
+  </div>
+  <div class="pace-tile is-steady" data-cap="is-steady">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="110"/></svg><div class="cal-ring-inner"><div class="cal-hero">-0.5</div><div class="cal-hero-unit">kg/wk</div></div></div>
+    <div class="cal-text"><div class="cal-status">On pace</div><div class="cal-detail">Right where you want to be for the week.</div></div>
+  </div>
+  <div class="pace-tile is-gaining" data-cap="is-gaining (warm, not alarming)">
+    <div class="cal-ring"><svg viewBox="0 0 104 104"><circle class="cal-ring-track" cx="52" cy="52" r="44"/><circle class="cal-ring-fill" cx="52" cy="52" r="44" stroke-dasharray="276.46" stroke-dashoffset="240"/></svg><div class="cal-ring-inner"><div class="cal-hero">+0.1</div><div class="cal-hero-unit">kg/wk</div></div></div>
+    <div class="cal-text"><div class="cal-status">Holding steady</div><div class="cal-detail">A flatter week — a couple of lighter days will tip it back.</div></div>
+  </div>
+</template>
+
+<template id="tpl-buttons">
+  <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+    <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+      <button class="btn btn-primary" type="button">Primary</button>
+      <button class="btn btn-ghost" type="button">Ghost</button>
+      <button class="btn btn-danger" type="button">Delete</button>
+    </div>
+    <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+      <button class="btn btn-ghost" type="button" disabled>Disabled</button>
+      <a class="btn btn-ghost" href="#" onclick="return false">Open sheet ↗</a>
+    </div>
+    <div class="progress-range-chips" style="border:none;padding:0;background:none">
+      <button class="range-chip" type="button">7d</button>
+      <button class="range-chip is-active" type="button">30d</button>
+      <button class="range-chip" type="button">90d</button>
+      <button class="range-chip" type="button">All</button>
+    </div>
+    <div class="category-pills">
+      <label class="category-pill"><input class="category-radio" type="radio" name="sgcat2"><span>Morning</span></label>
+      <label class="category-pill"><input class="category-radio" type="radio" name="sgcat2" checked><span>Afternoon</span></label>
+      <label class="category-pill category-pill-future"><input class="category-radio" type="radio" name="sgcat2"><span>Evening</span></label>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-settings">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <span class="settings-title">Settings</span>
+      <button class="btn btn-primary" type="button" style="min-height:40px;padding:8px 16px">Save &amp; Close</button>
+    </div>
+    <div class="settings-body">
+      <div>
+        <h2 class="settings-section-title">AI Estimation</h2>
+        <div class="ai-config-section">
+          <label class="ai-config-label">Gemini API Key</label>
+          <input class="ai-config-input" type="password" value="aaaaaaaaaaaaaaaaaa">
+        </div>
+        <div class="ai-config-section" style="margin-top:var(--space-3)">
+          <label class="ai-config-label">Personal Diet Profile</label>
+          <textarea class="ai-config-textarea" style="min-height:96px">* Standard lunch salad = 320 kcal
+* Homemade bread slice = 65g ≈ 160 kcal
+* Coffee = 200ml oat milk, no sugar ≈ 50 kcal</textarea>
+        </div>
+        <p class="ai-config-hint">Key and profiles are saved locally. Diet profile syncs to your sheet when connected.</p>
+      </div>
+      <div>
+        <h2 class="settings-section-title">Sheets Sync</h2>
+        <div class="settings-sync">
+          <button class="btn btn-primary" type="button">Connect</button>
+          <button class="btn btn-ghost" type="button">Refresh from sheet</button>
+        </div>
+        <p class="sync-status is-ok">Synced just now · 142 entries</p>
+        <p class="sync-status is-error">Couldn't reach the sheet — will retry when online.</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-charts">
+  <div class="progress-charts" style="padding:0;width:100%">
+    <figure class="chart">
+      <svg viewBox="0 0 360 190">
+        <line class="chart-grid-line" x1="34" y1="24" x2="350" y2="24"/>
+        <line class="chart-grid-line" x1="34" y1="84" x2="350" y2="84"/>
+        <line class="chart-grid-line" x1="34" y1="144" x2="350" y2="144"/>
+        <text class="chart-axis-label" x="28" y="27" text-anchor="end">86</text>
+        <text class="chart-axis-label" x="28" y="87" text-anchor="end">83</text>
+        <text class="chart-axis-label" x="28" y="147" text-anchor="end">80</text>
+        <polygon class="chart-area" points="40,52 120,66 200,86 280,104 350,120 350,160 40,160"/>
+        <polyline class="chart-line chart-line-weight" points="40,48 70,60 100,54 130,70 160,62 190,90 220,78 250,98 280,92 310,110 340,116 350,122"/>
+        <polyline class="chart-line chart-line-avg" points="40,52 120,66 200,86 280,104 350,120"/>
+        <circle class="chart-dot" cx="40" cy="48" r="2.5"/><circle class="chart-dot" cx="160" cy="62" r="2.5"/><circle class="chart-dot" cx="280" cy="92" r="2.5"/><circle class="chart-dot" cx="350" cy="122" r="2.5"/>
+        <text class="chart-axis-label" x="40" y="176">1 May</text>
+        <text class="chart-axis-label" x="350" y="176" text-anchor="end">30 May</text>
+      </svg>
+      <figcaption class="chart-label">Weight (kg)</figcaption>
+    </figure>
+    <figure class="chart">
+      <svg viewBox="0 0 360 190">
+        <line class="chart-zero-line" x1="34" y1="95" x2="350" y2="95"/>
+        <line class="chart-target-line" x1="34" y1="60" x2="350" y2="60"/>
+        <text class="chart-axis-label" x="28" y="33" text-anchor="end">+600</text>
+        <text class="chart-axis-label" x="28" y="98" text-anchor="end">0</text>
+        <text class="chart-axis-label" x="28" y="158" text-anchor="end">-600</text>
+        <rect class="chart-bar is-under" x="44"  y="49" width="22" height="46" rx="2"/>
+        <rect class="chart-bar is-under" x="80"  y="63" width="22" height="32" rx="2"/>
+        <rect class="chart-bar is-over"  x="116" y="95" width="22" height="24" rx="2"/>
+        <rect class="chart-bar is-under" x="152" y="55" width="22" height="40" rx="2"/>
+        <rect class="chart-bar is-under" x="188" y="41" width="22" height="54" rx="2"/>
+        <rect class="chart-bar is-over"  x="224" y="95" width="22" height="38" rx="2"/>
+        <rect class="chart-bar is-under" x="260" y="67" width="22" height="28" rx="2"/>
+        <rect class="chart-bar is-neutral" x="296" y="79" width="22" height="16" rx="2"/>
+        <rect class="chart-bar is-current" x="332" y="71" width="18" height="24" rx="2"/>
+        <text class="chart-axis-label" x="40" y="176">1 May</text>
+        <text class="chart-axis-label" x="350" y="176" text-anchor="end">30 May</text>
+      </svg>
+      <figcaption class="chart-label">Net balance (kcal/day) — deficit up, surplus down</figcaption>
+    </figure>
+  </div>
+</template>
+
+<template id="tpl-states">
+  <div class="empty-state"><p>Nothing logged yet for this day.</p></div>
+  <div class="progress-range-chips" style="border-radius:var(--radius-lg)">
+    <button class="range-chip" type="button">7d</button>
+    <button class="range-chip is-active" type="button">30d</button>
+    <button class="range-chip" type="button">90d</button>
+    <button class="range-chip" type="button">All</button>
+  </div>
+</template>
+
+<!-- probes for live token reads -->
+<div class="sg-hidden-probe"><span class="theme-light" id="probe-light"></span><span class="theme-dark" id="probe-dark"></span></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---- live version label from the app footer (best-effort) ---- */
+  fetch('./index.html').then(r => r.text()).then(html => {
+    const m = html.match(/brand-version[^>]*>(v[\d.]+)/);
+    if (m) document.getElementById('sg-ver').textContent = 'styles.css · app ' + m[1];
+  }).catch(() => {});
+
+  /* ---- colour token catalogue (names + descriptions; values read live) ---- */
+  const COLOR_GROUPS = {
+    core: [
+      ['--color-bg', 'App background'],
+      ['--color-surface', 'Cards, tiles, header'],
+      ['--color-surface-alt', 'Insets, hovered chips, mono blocks'],
+      ['--color-text', 'Primary text'],
+      ['--color-text-muted', 'Secondary text, captions, icons'],
+      ['--color-border', 'Hairlines, control borders, ring track'],
+    ],
+    semantic: [
+      ['--color-accent', 'Brand blue — primary actions, ring fill'],
+      ['--color-accent-strong', 'Darker blue — gradients, trend line, pressed'],
+      ['--color-accent-soft', 'Tinted fill — active tab, focus ring, pill wash'],
+      ['--color-success', 'Deficit / on-track green'],
+      ['--color-danger', 'Over-target / destructive red'],
+      ['--color-danger-soft', 'Soft danger fill (delete button rest)'],
+      ['--color-warning', 'Amber — gentle "over" without alarm'],
+    ],
+    daytype: [
+      ['--color-today-tint', 'Today date-nav background'],
+      ['--color-yest-tint', 'Yesterday date-nav background'],
+    ],
+    category: [
+      ['--color-breakfast', 'Breakfast wash'],
+      ['--color-morning', 'Morning wash'],
+      ['--color-lunch', 'Lunch wash'],
+      ['--color-afternoon', 'Afternoon wash'],
+      ['--color-dinner', 'Dinner wash'],
+      ['--color-evening', 'Evening wash'],
+    ],
+  };
+
+  const probeLight = getComputedStyle(document.getElementById('probe-light'));
+  const probeDark = getComputedStyle(document.getElementById('probe-dark'));
+  const read = (probe, name) => probe.getPropertyValue(name).trim();
+
+  function renderSwatches() {
+    document.querySelectorAll('.sg-swatches[data-group]').forEach(host => {
+      const group = COLOR_GROUPS[host.dataset.group] || [];
+      host.innerHTML = group.map(([name, desc]) => {
+        const lv = read(probeLight, name), dv = read(probeDark, name);
+        return `<div class="sg-swatch">
+          <div class="sg-swatch-chips">
+            <div style="background:${lv}"><span class="lbl" style="color:#222">light</span></div>
+            <div style="background:${dv}"><span class="lbl" style="color:#eee">dark</span></div>
+          </div>
+          <div class="sg-swatch-meta">
+            <div class="nm">${name}</div>
+            <div class="desc">${desc}</div>
+            <div class="vals"><span>L&nbsp;&nbsp;${lv}</span><span>D&nbsp;&nbsp;${dv}</span></div>
+          </div>
+        </div>`;
+      }).join('');
+    });
+  }
+
+  /* ---- theme-independent tokens read straight from :root (authoritative) ---- */
+  const rootCS = getComputedStyle(document.documentElement);
+  const rootVal = n => rootCS.getPropertyValue(n).trim();
+
+  function renderFonts() {
+    const rows = [
+      ['--font-display', 'Fraunces — headings, brand, big numbers, day note', 'Aa Bb 0123', "font-family:var(--font-display);font-variation-settings:'opsz' 48"],
+      ['--font', 'System sans — body, controls, labels', 'Aa Bb 0123', 'font-family:var(--font)'],
+      ['--font-mono', 'Monospace — profiles, sync log, technical', 'Aa Bb 0123', 'font-family:var(--font-mono)'],
+    ];
+    document.getElementById('sg-fonts').innerHTML = rows.map(([n, role, sample, style]) =>
+      `<tr><td class="mono" style="white-space:nowrap">${n}</td><td>${role}</td><td><span style="font-size:24px;${style}">${sample}</span></td></tr>`
+    ).join('');
+  }
+
+  function renderSpace() {
+    const uses = {
+      '--space-1': 'Hairline gaps, micro padding',
+      '--space-2': 'Tight gaps (button rows, pills)',
+      '--space-3': 'Control padding, small gaps',
+      '--space-4': 'Default card padding & gap',
+      '--space-5': 'Section padding, panel body',
+      '--space-6': 'Large block spacing',
+      '--space-7': 'Empty-state / generous padding',
+      '--space-8': 'Extra-large spacing',
+    };
+    document.getElementById('sg-space').innerHTML = Object.entries(uses).map(([n, use]) => {
+      const v = rootVal(n);
+      return `<tr><td class="mono" style="white-space:nowrap">${n}</td><td class="mono">${v}</td><td><span class="sg-bar" style="width:${v}"></span></td><td class="muted">${use}</td></tr>`;
+    }).join('');
+  }
+
+  function renderRadii() {
+    const uses = {
+      '--radius-sm': 'Icon buttons, edit inputs, thumbnails',
+      '--radius-md': 'Inputs, buttons, entries, small cards',
+      '--radius-lg': 'Tiles, date-nav, tabs, panels',
+      '--radius-pill': 'Pills, chips, version badge, ring text',
+    };
+    document.getElementById('sg-radii').innerHTML = Object.entries(uses).map(([n, use]) => {
+      const v = rootVal(n);
+      return `<tr><td class="mono" style="white-space:nowrap">${n}</td><td class="mono">${v}</td><td><span class="sg-radius-demo" style="border-radius:${v}"></span></td><td class="muted">${use}</td></tr>`;
+    }).join('');
+  }
+
+  /* ---- component gallery: clone templates into themed phone frames ---- */
+  let themeMode = 'both';
+
+  function frame(theme, demoId) {
+    const wrap = document.createElement('div');
+    wrap.className = 'sg-frame';
+    const tag = document.createElement('p');
+    tag.className = 'sg-phone-tag';
+    tag.textContent = theme === 'dark' ? 'Dark' : 'Light';
+    const phone = document.createElement('div');
+    phone.className = 'sg-phone theme-' + theme;
+    const tpl = document.getElementById('tpl-' + demoId);
+    const content = tpl.content.cloneNode(true);
+    // surface any data-cap captions as small labels above the captioned node
+    phone.appendChild(content);
+    phone.querySelectorAll('[data-cap]').forEach(node => {
+      const cap = document.createElement('div');
+      cap.className = 'sg-phone-tag';
+      cap.style.margin = '0 0 6px 2px';
+      cap.textContent = node.getAttribute('data-cap');
+      node.parentNode.insertBefore(cap, node);
+    });
+    wrap.appendChild(tag);
+    wrap.appendChild(phone);
+    return wrap;
+  }
+
+  function renderGallery() {
+    document.querySelectorAll('.sg-stage[data-demo]').forEach(stage => {
+      const demoId = stage.dataset.demo;
+      stage.innerHTML = '';
+      const themes = themeMode === 'both' ? ['light', 'dark'] : [themeMode];
+      themes.forEach(t => stage.appendChild(frame(t, demoId)));
+    });
+  }
+
+  document.getElementById('sg-toggle').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-theme]');
+    if (!btn) return;
+    themeMode = btn.dataset.theme;
+    document.querySelectorAll('#sg-toggle button').forEach(b => b.classList.toggle('is-active', b === btn));
+    renderGallery();
+  });
+
+  /* ---- drift self-check: mirror vs styles.css for the current OS theme ---- */
+  function driftCheck() {
+    const osDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const mirror = osDark ? probeDark : probeLight;
+    const allNames = Object.values(COLOR_GROUPS).flat().map(t => t[0]);
+    const mism = [];
+    allNames.forEach(name => {
+      const live = rootVal(name);            // styles.css value for current OS theme
+      const mir = read(mirror, name);        // this guide's mirrored value
+      if (live && mir && live !== mir) mism.push(`${name}: styles.css <code>${live}</code> ≠ guide <code>${mir}</code>`);
+    });
+    const box = document.getElementById('sg-drift');
+    if (mism.length) {
+      box.style.display = '';
+      box.innerHTML = `<strong>⚠ Token drift detected (${osDark ? 'dark' : 'light'} theme).</strong> ` +
+        `This guide's mirrored colour values no longer match <code>styles.css</code>. Update the ` +
+        `<code>.sg .theme-${osDark ? 'dark' : 'light'}</code> block to match:<br>• ` + mism.join('<br>• ');
+    }
+  }
+
+  renderSwatches();
+  renderFonts();
+  renderSpace();
+  renderRadii();
+  renderGallery();
+  driftCheck();
+})();
+</script>
+</body>
+</html>
