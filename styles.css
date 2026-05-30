@@ -306,61 +306,54 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* Day context note — warm amber post-it, Fraunces italic, centred.
-   Overlaps the bottom of the date panel and sits right-offset, like
-   a post-it stuck onto the day. Amber lives nowhere else in the
-   token set so it reads as "different / special" at a glance. */
+/* Day context note — journal margin note. A line written in the margin
+   of the day: Fraunces italic, inset from the left edge with a rose rule
+   running down its side and a small uppercase eyebrow above. Rose lives
+   nowhere else in the token set so it reads as "different / special". */
 .day-context-callout {
-  /* Post-it overlap: pull up into the date panel, sit to the right */
-  position: relative;
-  z-index: 1;
-  margin-top: -14px;
-  margin-left: auto;
-  margin-right: var(--space-3);
-  width: 62%;
-
-  padding: var(--space-3) var(--space-4);
+  /* Inset from the left like a true marginal annotation */
+  margin: 0 var(--space-1) 0 var(--space-5);
+  padding: 2px 2px 2px 14px;
+  border-left: 2.5px solid hsl(342 52% 52%);
 
   font-family: var(--font-display);
   font-style: italic;
-  font-size: 15px;
   font-weight: 400;
+  font-size: 19px;
   font-variation-settings: "opsz" 30;
-  line-height: 1.65;
-  letter-spacing: 0.01em;
-  text-align: center;
+  line-height: 1.35;
+  color: var(--color-text);
 
-  color: hsl(35 55% 30%);
-  background: linear-gradient(160deg, hsl(42 95% 97%) 0%, hsl(36 80% 94%) 100%);
-  border: 1px solid hsl(38 55% 82%);
-  border-radius: var(--radius-md);
-
-  /* Asymmetric shadow — heavier on left/bottom to sell the layering */
-  box-shadow:
-    -2px 4px 14px hsl(38 70% 45% / 0.18),
-    0 1px 3px hsl(38 60% 45% / 0.12),
-    inset 0 1px 0 hsl(42 100% 99%);
-
-  transform: rotate(0.7deg);
   cursor: pointer;
   word-break: break-word;
-  transition: transform 90ms ease, box-shadow 90ms ease;
+  transition: opacity 90ms ease;
+}
+
+/* Eyebrow — set in CSS so renderDayContextLabel can keep assigning the
+   note text straight to textContent. */
+.day-context-callout::before {
+  content: "A note on today";
+  display: block;
+  margin-bottom: 3px;
+  font-family: var(--font);
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: hsl(342 45% 32%);
 }
 
 .day-context-callout:active {
-  transform: rotate(0.7deg) scale(0.985);
-  box-shadow: -1px 2px 6px hsl(38 60% 45% / 0.12);
+  opacity: 0.7;
 }
 
 @media (prefers-color-scheme: dark) {
   .day-context-callout {
-    color: hsl(38 70% 72%);
-    background: linear-gradient(160deg, hsl(38 28% 14%) 0%, hsl(35 22% 12%) 100%);
-    border-color: hsl(38 28% 24%);
-    box-shadow:
-      -2px 4px 14px hsl(38 40% 6% / 0.6),
-      0 1px 3px hsl(0 0% 0% / 0.3),
-      inset 0 1px 0 hsl(38 30% 18%);
+    border-left-color: hsl(342 48% 60%);
+  }
+  .day-context-callout::before {
+    color: hsl(342 55% 78%);
   }
 }
 
