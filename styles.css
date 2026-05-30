@@ -34,7 +34,7 @@
 
   /* Time category colors */
   --color-breakfast: hsl(22 65% 93%);
-  --color-morning: hsl(20 60% 94%);
+  --color-morning: hsl(46 72% 91%);
   --color-lunch: hsl(120 40% 94%);
   --color-afternoon: hsl(200 50% 94%);
   --color-dinner: hsl(260 40% 94%);
@@ -86,7 +86,7 @@
 
     /* Time category colors (dark mode) */
     --color-breakfast: hsl(22 32% 17%);
-    --color-morning: hsl(20 30% 18%);
+    --color-morning: hsl(46 36% 19%);
     --color-lunch: hsl(120 20% 18%);
     --color-afternoon: hsl(200 30% 18%);
     --color-dinner: hsl(260 20% 18%);
@@ -735,7 +735,7 @@ a.btn {
 /* Stronger same-hue left edge over the soft pastel category wash. */
 .entry::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
 .entry.category-breakfast::before { background: hsl(22 72% 56%); }
-.entry.category-morning::before   { background: hsl(20 70% 58%); }
+.entry.category-morning::before   { background: hsl(44 80% 47%); }
 .entry.category-lunch::before     { background: hsl(120 38% 50%); }
 .entry.category-afternoon::before { background: hsl(200 60% 52%); }
 .entry.category-dinner::before    { background: hsl(260 45% 62%); }

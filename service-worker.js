@@ -1,5 +1,5 @@
 // Bump CACHE_VERSION whenever shell files change so updates roll cleanly.
-const CACHE_VERSION = 'v1.5.5';
+const CACHE_VERSION = 'v1.5.6';
 const CACHE_NAME = `fw-shell-${CACHE_VERSION}`;
 
 const DEXIE_URL = 'https://unpkg.com/dexie@4.4.2/dist/dexie.min.js';
