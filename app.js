@@ -2576,6 +2576,7 @@ function initContextOverlay() {
   }
   els.contextCancelBtn.addEventListener('click', closeContext);
   els.contextOverlay.addEventListener('click', (e) => { if (e.target === els.contextOverlay) closeContext(); });
+  els.dayContextLabel.addEventListener('click', openContextPrompt);
   els.contextSaveBtn.addEventListener('click', () => {
     const text = els.contextInput.value.trim();
     if (!text) return;
