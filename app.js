@@ -113,8 +113,8 @@ const TYPES = {
     isCollapsible: true,
     formatDisplay: (e) => e.text,
   },
-  skip_food: {
-    label: 'Skip Day',
+  day_context: {
+    label: 'Day Note',
     inputKind: 'text',
     isCollapsible: false,
     formatDisplay: (e) => e.text,
@@ -257,7 +257,7 @@ let currentTab = 'food';
 let confirmingDeleteId = null;
 let retroConfirmState = null; // { id, aiResult } when retro-estimate review is open
 let isFormOpen = false;
-let skipMarker = null;
+let dayContext = null;
 // Set by "copy to today" / "confirm plan"; consumed once by the next
 // renderEntryForm to prefill (and, for a confirm, to carry promotingFromId).
 let prefillEntry = null;
@@ -276,10 +276,13 @@ const els = {
   list: document.getElementById('entries-list'),
   empty: document.getElementById('empty-state'),
   calTotal: document.getElementById('calories-total'),
-  skipOverlay: document.getElementById('skip-overlay'),
-  skipReasonInput: document.getElementById('skip-reason-input'),
-  skipCancelBtn: document.getElementById('skip-cancel'),
-  skipConfirmBtn: document.getElementById('skip-confirm'),
+  contextOverlay: document.getElementById('context-overlay'),
+  contextOverlayTitle: document.getElementById('context-overlay-title'),
+  contextInput: document.getElementById('context-input'),
+  contextSaveBtn: document.getElementById('context-save'),
+  contextDeleteBtn: document.getElementById('context-delete'),
+  contextCancelBtn: document.getElementById('context-cancel'),
+  dayContextLabel: document.getElementById('day-context-label'),
 };
 
 // ------------------------------------------------------------------
@@ -308,12 +311,12 @@ async function loadEntries(date, type) {
     .sortBy('timestamp');
 }
 
-async function loadSkipMarker(date) {
+async function loadDayContext(date) {
   const start = startOfDay(date).getTime();
   const end = endOfDay(date).getTime();
   const rows = await db.entries
     .where('timestamp').between(start, end, true, true)
-    .and((e) => e.type === 'skip_food')
+    .and((e) => e.type === 'day_context')
     .toArray();
   return rows[0] || null;
 }
@@ -418,36 +421,44 @@ async function confirmAndDelete(id) {
   await refreshList();
 }
 
-async function createSkipMarker(reason) {
+async function createDayContext(text) {
   const entry = {
-    type: 'skip_food',
+    type: 'day_context',
     uuid: crypto.randomUUID(),
-    text: reason || '',
-    rawInput: reason || '',
+    text,
+    rawInput: text,
     timestamp: combineDayAndTime(currentDate, '12:00'),
     synced: 0,
   };
   const id = await db.entries.add(entry);
-  skipMarker = { ...entry, id };
+  dayContext = { ...entry, id };
   if (typeof syncEntriesToSheet === 'function') {
-    syncEntriesToSheet([skipMarker])
+    syncEntriesToSheet([dayContext])
       .then(() => db.entries.update(id, { synced: true }))
       .catch(() => {});
   }
-  renderEntryForm();
-  await refreshList();
+  renderDayContextLabel();
 }
 
-async function removeSkipMarker() {
-  if (!skipMarker) return;
-  const { id, uuid } = skipMarker;
+async function updateDayContext(text) {
+  if (!dayContext) return;
+  await db.entries.update(dayContext.id, { text, rawInput: text, synced: 0 });
+  dayContext = { ...dayContext, text, rawInput: text };
+  if (typeof updateEntryInSheet === 'function') {
+    updateEntryInSheet(dayContext).catch(() => {});
+  }
+  renderDayContextLabel();
+}
+
+async function deleteDayContext() {
+  if (!dayContext) return;
+  const { id, uuid } = dayContext;
   await db.entries.delete(id);
-  skipMarker = null;
+  dayContext = null;
   if (uuid && typeof deleteEntryFromSheet === 'function') {
     deleteEntryFromSheet(uuid).catch(() => {});
   }
-  renderEntryForm();
-  await refreshList();
+  renderDayContextLabel();
 }
 
 function startDeleteConfirm(id) {
@@ -509,7 +520,7 @@ function setDate(date) {
   confirmingDeleteId = null;
   retroConfirmState = null;
   isFormOpen = false;
-  skipMarker = null;
+  dayContext = null;
   refreshAll();
 }
 
@@ -519,7 +530,7 @@ function setTab(tab) {
   confirmingDeleteId = null;
   retroConfirmState = null;
   isFormOpen = false;
-  skipMarker = null;
+  dayContext = null;
   refreshAll();
 }
 
@@ -895,17 +906,13 @@ function attachLongPress(el, handler) {
   });
 }
 
-function openSkipPrompt() {
-  if (currentTab !== 'food') return;
-  // TODO: restore today-only guard after testing
-  // if (!isSameDay(currentDate, new Date())) return;
-  if (skipMarker) return;
-  loadEntries(currentDate, 'food').then((entries) => {
-    if (entries.length > 0) return;
-    els.skipReasonInput.value = '';
-    els.skipOverlay.classList.remove('hidden');
-    els.skipReasonInput.focus();
-  });
+function openContextPrompt() {
+  const isEdit = !!dayContext;
+  els.contextOverlayTitle.textContent = isEdit ? 'Edit day note' : 'Add day note';
+  els.contextInput.value = isEdit ? (dayContext.text || '') : '';
+  els.contextDeleteBtn.classList.toggle('hidden', !isEdit);
+  els.contextOverlay.classList.remove('hidden');
+  els.contextInput.focus();
 }
 
 function renderDateNav() {
@@ -919,7 +926,7 @@ function renderDateNav() {
   els.nextBtn.disabled = onToday;
   els.nextBtn.setAttribute('aria-disabled', onToday ? 'true' : 'false');
 
-  attachLongPress(els.dateNavLabel, openSkipPrompt);
+  attachLongPress(els.dateNavLabel, openContextPrompt);
 }
 
 function buildPrimaryInput(config, initialValue) {
@@ -1080,6 +1087,16 @@ function renderMeasurementsForms({ hideWeight = false, hideWaist = false } = {})
   els.formContainer.replaceChildren(container);
 }
 
+function renderDayContextLabel() {
+  if (dayContext && dayContext.text) {
+    els.dayContextLabel.textContent = dayContext.text;
+    els.dayContextLabel.hidden = false;
+  } else {
+    els.dayContextLabel.textContent = '';
+    els.dayContextLabel.hidden = true;
+  }
+}
+
 function renderEntryForm() {
   if (currentTab === 'measurements') {
     // Forms are populated by refreshList (which knows what's already logged today).
@@ -1089,28 +1106,6 @@ function renderEntryForm() {
   }
 
   const config = TYPES[currentTab];
-
-  if (currentTab === 'food' && skipMarker) {
-    const banner = document.createElement('div');
-    banner.className = 'empty-state';
-    const msg = document.createElement('p');
-    msg.textContent = skipMarker.text
-      ? `Day off — ${skipMarker.text}`
-      : 'Food logging skipped for today.';
-    banner.appendChild(msg);
-    // TODO: restore today-only guard after testing
-    // if (isSameDay(currentDate, new Date())) {
-    const undoBtn = document.createElement('button');
-    undoBtn.type = 'button';
-    undoBtn.className = 'btn btn-ghost';
-    undoBtn.style.marginTop = '12px';
-    undoBtn.textContent = 'Undo';
-    undoBtn.addEventListener('click', removeSkipMarker);
-    banner.appendChild(undoBtn);
-    // }
-    els.formContainer.replaceChildren(banner);
-    return;
-  }
 
   if (config.isCollapsible && !isFormOpen) {
     const toggleBtn = document.createElement('button');
@@ -1719,11 +1714,6 @@ async function refreshList() {
   }
   renderEntries(entries);
 
-  if (currentTab === 'food' && skipMarker) {
-    els.calTotal.hidden = true;
-    return;
-  }
-
   if (currentTab === 'food' || currentTab === 'workout') {
     const foodDay = currentTab === 'food' ? entries : await loadEntries(currentDate, 'food');
     // A past day with no food logged has no meaningful daily balance — hide the pane.
@@ -1923,11 +1913,8 @@ function renderCalorieTotal({ foodConfirmed, foodPending, workoutConfirmed, work
 async function refreshAll() {
   renderTabs();
   renderDateNav();
-  if (currentTab === 'food') {
-    skipMarker = await loadSkipMarker(currentDate);
-  } else {
-    skipMarker = null;
-  }
+  dayContext = await loadDayContext(currentDate);
+  renderDayContextLabel();
   renderEntryForm();
   await refreshList();
 }
@@ -2582,17 +2569,26 @@ function initProgressPanel() {
 // ------------------------------------------------------------------
 // Init
 // ------------------------------------------------------------------
-function initSkipOverlay() {
-  function closeSkip() {
-    els.skipOverlay.classList.add('hidden');
-    els.skipReasonInput.value = '';
+function initContextOverlay() {
+  function closeContext() {
+    els.contextOverlay.classList.add('hidden');
+    els.contextInput.value = '';
   }
-  els.skipCancelBtn.addEventListener('click', closeSkip);
-  els.skipOverlay.addEventListener('click', (e) => { if (e.target === els.skipOverlay) closeSkip(); });
-  els.skipConfirmBtn.addEventListener('click', () => {
-    const reason = els.skipReasonInput.value.trim();
-    closeSkip();
-    createSkipMarker(reason);
+  els.contextCancelBtn.addEventListener('click', closeContext);
+  els.contextOverlay.addEventListener('click', (e) => { if (e.target === els.contextOverlay) closeContext(); });
+  els.contextSaveBtn.addEventListener('click', () => {
+    const text = els.contextInput.value.trim();
+    if (!text) return;
+    closeContext();
+    if (dayContext) {
+      updateDayContext(text);
+    } else {
+      createDayContext(text);
+    }
+  });
+  els.contextDeleteBtn.addEventListener('click', () => {
+    closeContext();
+    deleteDayContext();
   });
 }
 
@@ -2629,7 +2625,7 @@ function init() {
   }, { passive: true });
   initSettingsPanel();
   initProgressPanel();
-  initSkipOverlay();
+  initContextOverlay();
   rebuildFrequentFoods();
   rebuildFrequentWorkouts();
   refreshAll();
