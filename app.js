@@ -53,16 +53,70 @@ db.version(3).stores({
 const SHEET_SCHEMA_VERSION = 5;
 
 const WEIGHT_AVG_WINDOW_DAYS = 7;
-// Baseline activity multiplier on BMR. Deliberate activity (walks, workouts) is
-// logged separately and added on top, so this baseline must NOT include exercise.
-// 1.2 = clinically sedentary; ~1.35 absorbs everyday non-exercise mobility (a
-// normally-mobile rest day) without double-counting logged sessions. Editable in
-// settings — a 2026-05 Garmin resting-calorie cross-check put the true baseline
-// for a normally-mobile rest day near 1.35.
-const ACTIVITY_MULTIPLIER_DEFAULT = 1.35;
-function getActivityMultiplier() {
+// Baseline activity multiplier on BMR for a normal (non-exercise) day. Deliberate
+// activity — walks, workouts — is logged separately and ADDED on top, so this
+// baseline must NOT include logged exercise (an additive model, not a single
+// "total" multiplier).
+//   - ×1.2  = clinically sedentary; ≈ Garmin's resting figure (2026-05 cross-check:
+//             Garmin resting 2320 at 102.5 kg ≈ BMR × 1.22).
+//   - ×1.6  ≈ Garmin's TOTAL burn (~3055/day) — do NOT use as the baseline; the
+//             active portion is the logged walks plus uncaptured NEAT.
+//   - ×1.3  = resting + a small buffer for everyday non-exercise mobility (NEAT)
+//             the explicit walk/workout log misses. Default.
+// Editable in settings, and EFFECTIVE-DATED: changing it sets the value from today
+// forward only — already-completed past days keep the multiplier they were logged
+// under, so historic baselines/charts don't silently move. See the log helpers below.
+const ACTIVITY_MULTIPLIER_DEFAULT = 1.3;
+
+// Effective-dated multiplier log: array of { effectiveFrom: <ms, start-of-day>, value }
+// sorted ascending. The value for a day is the last breakpoint whose effectiveFrom is
+// on/before that day; a breakpoint at effectiveFrom 0 (the synthesized sentinel) covers
+// all history. Stored as JSON in localStorage.
+const ACTIVITY_MULTIPLIER_LOG_KEY = 'fw_activity_multiplier_log';
+
+function readActivityMultiplierLog() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(ACTIVITY_MULTIPLIER_LOG_KEY) || '');
+    if (Array.isArray(arr) && arr.length) {
+      const clean = arr
+        .filter(bp => Number.isFinite(bp.effectiveFrom) && Number.isFinite(bp.value) && bp.value > 0)
+        .sort((a, b) => a.effectiveFrom - b.effectiveFrom);
+      if (clean.length) return clean;
+    }
+  } catch { /* fall through to synthesis */ }
+  // No (valid) log yet: synthesize one sentinel from the legacy scalar value, which
+  // has applied to all of history up to now.
   const v = parseFloat(localStorage.getItem('fw_activity_multiplier') || '');
-  return Number.isFinite(v) && v > 0 ? v : ACTIVITY_MULTIPLIER_DEFAULT;
+  const base = Number.isFinite(v) && v > 0 ? v : ACTIVITY_MULTIPLIER_DEFAULT;
+  return [{ effectiveFrom: 0, value: base }];
+}
+
+// Multiplier in effect on a given date (Date or ms). Past days resolve to whatever
+// was current when they were logged; today/future resolve to the latest value.
+function getActivityMultiplierForDate(date) {
+  const t = date instanceof Date ? date.getTime() : Number(date);
+  const log = readActivityMultiplierLog();
+  let val = log[0].value;
+  for (const bp of log) {
+    if (bp.effectiveFrom <= t) val = bp.value; else break;
+  }
+  return val;
+}
+
+// Current (today's) multiplier — used by the settings preview and as a scalar.
+function getActivityMultiplier() {
+  return getActivityMultiplierForDate(Date.now());
+}
+
+// Persist a new multiplier, effective from the start of today forward. Completed
+// past days are untouched. Re-editing the same day overwrites today's breakpoint.
+function setActivityMultiplier(value) {
+  const today = startOfDay(new Date()).getTime();
+  const log = readActivityMultiplierLog().filter(bp => bp.effectiveFrom !== today);
+  log.push({ effectiveFrom: today, value });
+  log.sort((a, b) => a.effectiveFrom - b.effectiveFrom);
+  localStorage.setItem(ACTIVITY_MULTIPLIER_LOG_KEY, JSON.stringify(log));
+  localStorage.setItem('fw_activity_multiplier', String(value));
 }
 const WEIGHT_STALENESS_LIMIT_DAYS = 14;
 
@@ -752,11 +806,11 @@ async function updateCalTargetPreview() {
   }
 }
 
-function targetFromWeight(weightAvg, sex, age, height) {
+function targetFromWeight(weightAvg, sex, age, height, date = new Date()) {
   const bmr = sex === 'male'
     ? 10 * weightAvg + 6.25 * height - 5 * age + 5
     : 10 * weightAvg + 6.25 * height - 5 * age - 161;
-  return Math.round(bmr * getActivityMultiplier());
+  return Math.round(bmr * getActivityMultiplierForDate(date));
 }
 
 // Returns { targetKcal, weightAvg, source } or null.
@@ -810,7 +864,7 @@ async function computeMaintenanceTarget(date = new Date()) {
     console.log('[app] computeMaintenanceTarget: stale fallback weight', fallback.value, 'from', new Date(fallback.timestamp).toISOString());
   }
 
-  return { targetKcal: targetFromWeight(weightAvg, sex, age, height), weightAvg, source };
+  return { targetKcal: targetFromWeight(weightAvg, sex, age, height, date), weightAvg, source };
 }
 
 function initSettingsPanel() {
@@ -839,7 +893,7 @@ function initSettingsPanel() {
     if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
     if (actEl) {
       const v = parseFloat(actEl.value);
-      if (Number.isFinite(v) && v > 0) localStorage.setItem('fw_activity_multiplier', String(v));
+      if (Number.isFinite(v) && v > 0) setActivityMultiplier(v);
     }
     if (typeof pushProfileAndGoalToSheet === 'function') {
       pushProfileAndGoalToSheet().catch(() => {});
@@ -876,6 +930,10 @@ function initSettingsPanel() {
     if (sexEl) localStorage.setItem('fw_cal_sex', sexEl.value);
     if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
     if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
+    if (actEl) {
+      const v = parseFloat(actEl.value);
+      if (Number.isFinite(v) && v > 0) setActivityMultiplier(v);
+    }
     updateCalTargetPreview();
     if (typeof pushProfileAndGoalToSheet === 'function') {
       pushProfileAndGoalToSheet().catch(() => {});
@@ -885,6 +943,9 @@ function initSettingsPanel() {
   if (sexEl) sexEl.addEventListener('change', saveCalField);
   if (ageEl) ageEl.addEventListener('blur', saveCalField);
   if (htEl) htEl.addEventListener('blur', saveCalField);
+  // Activity multiplier persists + re-previews on each keystroke (the preview
+  // reads it back from localStorage via getActivityMultiplier).
+  if (actEl) actEl.addEventListener('input', saveCalField);
 }
 
 // ------------------------------------------------------------------
@@ -1998,7 +2059,7 @@ async function loadProgressRange(startDate, endDate) {
       }
       if (reps.length > 0) {
         weightAvg7 = reps.reduce((s, v) => s + v, 0) / reps.length;
-        targetKcal = targetFromWeight(weightAvg7, sex, age, height);
+        targetKcal = targetFromWeight(weightAvg7, sex, age, height, d);
       }
     }
 
