@@ -53,9 +53,17 @@ db.version(3).stores({
 const SHEET_SCHEMA_VERSION = 5;
 
 const WEIGHT_AVG_WINDOW_DAYS = 7;
-// Sedentary baseline: logged activity is added on top, so the baseline must assume
-// no deliberate exercise (1.2). A higher factor would double-count logged activity.
-const ACTIVITY_MULTIPLIER = 1.2;
+// Baseline activity multiplier on BMR. Deliberate activity (walks, workouts) is
+// logged separately and added on top, so this baseline must NOT include exercise.
+// 1.2 = clinically sedentary; ~1.35 absorbs everyday non-exercise mobility (a
+// normally-mobile rest day) without double-counting logged sessions. Editable in
+// settings — a 2026-05 Garmin resting-calorie cross-check put the true baseline
+// for a normally-mobile rest day near 1.35.
+const ACTIVITY_MULTIPLIER_DEFAULT = 1.35;
+function getActivityMultiplier() {
+  const v = parseFloat(localStorage.getItem('fw_activity_multiplier') || '');
+  return Number.isFinite(v) && v > 0 ? v : ACTIVITY_MULTIPLIER_DEFAULT;
+}
 const WEIGHT_STALENESS_LIMIT_DAYS = 14;
 
 // kcal per kg of body weight — converts a calorie deficit into a weight-loss rate.
@@ -617,14 +625,14 @@ async function requestWorkoutEstimation(inputText, effort) {
     .then((rows) => rows[0]?.value ?? null);
 
   const EFFORT_DESCRIPTIONS = {
-    low: 'Low — conversational pace, can hold a continuous conversation, RPE ~3-4/10.',
+    low: 'Low — comfortable and conversational, sustainable for a long time, RPE ~3-4/10. Effort describes cardiovascular exertion, NOT speed: a reasonably fit person sustains a brisk pace at this effort.',
     med: 'Medium — breathing harder, short sentences only, RPE ~5-6/10.',
     high: 'High — near-maximal, can barely speak, RPE ~7-9/10.',
   };
   const effortKey = (effort || 'low').toLowerCase();
   const effortLine = EFFORT_DESCRIPTIONS[effortKey] || EFFORT_DESCRIPTIONS.low;
 
-  const prompt = `You are a conservative exercise calorie estimator helping with weight loss. Estimate calories burned as accurately as possible. Where there is genuine uncertainty, err on the side of underestimating (not overestimating) to support weight loss goals — but do not adjust estimates that already have high confidence. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg.\n\n[PERSONAL FITNESS PROFILE]\n${fitnessContext || 'No personal profile set.'}\n\n[ACTIVITY]\n${inputText}\n\n[EFFORT]\nUser-reported effort: ${effortKey} — ${effortLine}\nUse this to calibrate intensity assumptions (pace, heart-rate zone, work-to-rest ratio).\n\nRespond with a JSON array matching this exact schema:\n[\n  <number_calories_burned>,\n  "<emoji> <string_short_title>",\n  "<confidence_one_of: Excellent|Moderate|Low>",\n  "<reasoning_max_25_words_focus_only_on_raw_MET_values_durations_and_biometrics_no_methodology_filler>"\n]\n\nExample: [240, "🏃 Evening Run", "Excellent", "22.5 min weeding (3.0 METs) + 22.5 min vigorous raking (4.5 METs), medium effort, 115 bpm."]`;
+  const prompt = `You are an exercise calorie estimator helping with weight loss. Give your best central, most-likely estimate of calories burned — do not deliberately bias the number high or low; an unbiased estimate is more useful than a cautious one. The user is a ${age}yo ${sex}, ${height}cm, ${weight}kg of reasonable fitness.\n\n[PERSONAL FITNESS PROFILE]\n${fitnessContext || 'No personal profile set.'}\n\n[ACTIVITY]\n${inputText}\n\n[EFFORT]\nUser-reported effort: ${effortKey} — ${effortLine}\nUse this to calibrate intensity (heart-rate zone, work-to-rest ratio) but interpret it as exertion, not pace. Crucial for walking: low effort does NOT mean a slow stroll. A fit adult walks briskly (~5-6 km/h) at low effort while still conversational, so use a brisk-walk MET (~3.8-4.3) — not a casual-stroll MET (~2.5-3.0) — unless the input explicitly says slow, gentle, or leisurely.\n\nRespond with a JSON array matching this exact schema:\n[\n  <number_calories_burned>,\n  "<emoji> <string_short_title>",\n  "<confidence_one_of: Excellent|Moderate|Low>",\n  "<reasoning_max_25_words_focus_only_on_raw_MET_values_durations_and_biometrics_no_methodology_filler>"\n]\n\nExample: [286, "🚶 Brisk Walk", "Excellent", "40 min brisk walk ~5.5 km/h (4.0 METs), 102 kg, low effort but not slow."]`;
 
   return geminiGenerate(apiKey, 'gemini-2.5-flash', [{ text: prompt }]);
 }
@@ -723,9 +731,11 @@ function loadSettingsValues() {
   const sexEl = document.getElementById('cfg-cal-sex');
   const ageEl = document.getElementById('cfg-cal-age');
   const htEl = document.getElementById('cfg-cal-height');
+  const actEl = document.getElementById('cfg-cal-activity');
   if (sexEl) sexEl.value = localStorage.getItem('fw_cal_sex') || '';
   if (ageEl) ageEl.value = localStorage.getItem('fw_cal_age') || '';
   if (htEl) htEl.value = localStorage.getItem('fw_cal_height') || '';
+  if (actEl) actEl.value = localStorage.getItem('fw_activity_multiplier') || String(ACTIVITY_MULTIPLIER_DEFAULT);
   updateCalTargetPreview();
 }
 
@@ -735,7 +745,8 @@ async function updateCalTargetPreview() {
   const info = await computeMaintenanceTarget();
   const target = info?.targetKcal;
   if (target) {
-    preview.textContent = `Estimated maintenance: ${target} kcal/day (7-day weight average × 1.2 sedentary baseline; logged activity adds on top).`;
+    const mult = getActivityMultiplier();
+    preview.textContent = `Baseline maintenance: ${target} kcal/day (7-day weight average × ${mult} activity baseline). Logged walks & workouts add on top. Compare against Garmin's resting figure and tweak the multiplier if it reads high or low.`;
   } else {
     preview.textContent = 'Set your profile fields above to see an estimated maintenance target.';
   }
@@ -745,7 +756,7 @@ function targetFromWeight(weightAvg, sex, age, height) {
   const bmr = sex === 'male'
     ? 10 * weightAvg + 6.25 * height - 5 * age + 5
     : 10 * weightAvg + 6.25 * height - 5 * age - 161;
-  return Math.round(bmr * ACTIVITY_MULTIPLIER);
+  return Math.round(bmr * getActivityMultiplier());
 }
 
 // Returns { targetKcal, weightAvg, source } or null.
@@ -812,6 +823,7 @@ function initSettingsPanel() {
   const sexEl = document.getElementById('cfg-cal-sex');
   const ageEl = document.getElementById('cfg-cal-age');
   const htEl = document.getElementById('cfg-cal-height');
+  const actEl = document.getElementById('cfg-cal-activity');
 
   if (!btn || !overlay) return;
 
@@ -825,6 +837,10 @@ function initSettingsPanel() {
     if (sexEl) localStorage.setItem('fw_cal_sex', sexEl.value);
     if (ageEl) localStorage.setItem('fw_cal_age', ageEl.value.trim());
     if (htEl) localStorage.setItem('fw_cal_height', htEl.value.trim());
+    if (actEl) {
+      const v = parseFloat(actEl.value);
+      if (Number.isFinite(v) && v > 0) localStorage.setItem('fw_activity_multiplier', String(v));
+    }
     if (typeof pushProfileAndGoalToSheet === 'function') {
       pushProfileAndGoalToSheet().catch(() => {});
     }
