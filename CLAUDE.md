@@ -58,7 +58,7 @@ Organized by `// ----` banner comments — grep the banner text to jump:
 | `AI estimation`                             | Gemini calls for food + workout                                              |
 | `Frequent-items index`                      | uFuzzy local match for repeat foods (threshold 3, min query len 2)           |
 | `Weekly goal`                               | `getGoal` / `setGoal` (localStorage)                                         |
-| `Settings panel`                            | `initSettingsPanel`, goal preview, `computeMaintenanceTarget` (Mifflin × 1.2)|
+| `Settings panel`                            | `initSettingsPanel`, cal-target preview, `computeMaintenanceTarget` (Mifflin × editable multiplier, default 1.3), `buildAnalysisDump` (TSV export)|
 | `Rendering`                                 | `renderEntryForm`, `renderEntries`, `renderCalorieTotal`, `buildCalRing`     |
 | `Progress charts`                           | weight / calories / net-balance SVG charts; `CHART_W=360, CHART_H=190`       |
 | `Weekly goal: pace tile + weekly deficit chart` | meal-curve partial-day scaling; `buildPaceTile`; `buildWeeklyDeficitChart` |

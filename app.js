@@ -867,6 +867,52 @@ async function computeMaintenanceTarget(date = new Date()) {
   return { targetKcal: targetFromWeight(weightAvg, sex, age, height, date), weightAvg, source };
 }
 
+// Build a compact, LLM-ingestible dump of every entry as TSV (tab-separated so
+// free-text notes never need comma-quoting), with a short metadata preamble.
+// Maintenance targets are intentionally omitted — they're derivable from weight +
+// the activity multiplier, so shipping them would just be redundant bytes.
+async function buildAnalysisDump() {
+  const all = await db.entries.toArray();
+  all.sort((a, b) => a.timestamp - b.timestamp);
+  const pad = n => String(n).padStart(2, '0');
+  const isoDate = ts => { const d = new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const clean = s => (s == null ? '' : String(s).replace(/[\t\r\n]+/g, ' ').trim());
+
+  const cols = ['date', 'time', 'type', 'value', 'kcal', 'cal_src', 'conf', 'effort', 'text'];
+  const lines = [cols.join('\t')];
+  for (const e of all) {
+    lines.push([
+      isoDate(e.timestamp), clean(e.timeCategory), clean(e.type),
+      e.value ?? '', e.calories ?? '', clean(e.calorieSource),
+      clean(e.calorieConfidence), clean(e.effort), clean(e.text),
+    ].join('\t'));
+  }
+
+  const range = all.length ? `${isoDate(all[0].timestamp)} .. ${isoDate(all[all.length - 1].timestamp)}` : '(none)';
+  const preamble = [
+    `# Food & Weight data export`,
+    `# generated: ${new Date().toISOString()}`,
+    `# profile: ${localStorage.getItem('fw_cal_sex') || '?'}, age ${localStorage.getItem('fw_cal_age') || '?'}, height ${localStorage.getItem('fw_cal_height') || '?'}cm`,
+    `# activity_multiplier (current): ${getActivityMultiplier()}`,
+    `# entries: ${all.length} rows, ${range}`,
+    `# format: TSV; maintenance target = BMR(Mifflin) x multiplier from 7-day trailing weight, logged activity adds on top`,
+    '',
+  ].join('\n');
+
+  return preamble + lines.join('\n');
+}
+
+function downloadTextFile(text, ext) {
+  const pad = n => String(n).padStart(2, '0');
+  const d = new Date();
+  const name = `fw-data-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.${ext}`;
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function initSettingsPanel() {
   const btn = document.getElementById('settings-btn');
   const overlay = document.getElementById('settings-overlay');
@@ -946,6 +992,32 @@ function initSettingsPanel() {
   // Activity multiplier persists + re-previews on each keystroke (the preview
   // reads it back from localStorage via getActivityMultiplier).
   if (actEl) actEl.addEventListener('input', saveCalField);
+
+  // Data export: copy a compact TSV dump to clipboard (paste into an LLM chat),
+  // with a .tsv download as fallback when the clipboard API is unavailable.
+  const exportCopyBtn = document.getElementById('export-copy');
+  const exportDlBtn = document.getElementById('export-download');
+  const exportStatus = document.getElementById('export-status');
+  const setExportStatus = msg => { if (exportStatus) exportStatus.textContent = msg; };
+
+  if (exportCopyBtn) {
+    exportCopyBtn.addEventListener('click', async () => {
+      const dump = await buildAnalysisDump();
+      try {
+        await navigator.clipboard.writeText(dump);
+        setExportStatus(`Copied ${dump.split('\n').length} lines — paste into chat.`);
+      } catch {
+        downloadTextFile(dump, 'tsv');
+        setExportStatus('Clipboard unavailable — downloaded a .tsv instead.');
+      }
+    });
+  }
+  if (exportDlBtn) {
+    exportDlBtn.addEventListener('click', async () => {
+      downloadTextFile(await buildAnalysisDump(), 'tsv');
+      setExportStatus('Downloaded .tsv.');
+    });
+  }
 }
 
 // ------------------------------------------------------------------
