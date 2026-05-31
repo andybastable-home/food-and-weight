@@ -75,9 +75,9 @@ Schema-version gating: `SHEET_SCHEMA_VERSION` is the version this build understa
 - **IndexedDB** `FoodAndWeight` / store `entries`, keyed `++id` with unique `uuid`. Entry shape: `{ uuid, type, timestamp, text?, value?, calories?, timeCategory?, effort?, rawInput?, aiSuggestedTitle?, aiSuggestedCalories?, calorieSource?, calorieConfidence?, aiReasoning?, syncedAt? }`. Skip-day rows use `type: 'skip_food'` with reason in `text`.
 - **Google Sheet — three tabs:**
   - `Entries` (cols A–P, v5 header) — see `ENTRIES_HEADER_V5`. Column P (`ai_reasoning`) holds Gemini's free-text explanation for review/calibration; blank on user-entered or pre-v5 rows.
-  - `Metadata` — `A1/B1` schema version, `A2/B2` back-dating convention, `A3:B8` profile + weekly goal, plus AI-context rows below.
-  - `DailyTargets` — `date, target_kcal, weight_avg_kg, window_days`. Maintenance kcal = Mifflin-St Jeor BMR × 1.2 (sedentary baseline; logged activity adds on top) from the 7-day trailing avg weight (the 7 calendar days strictly before the date).
-- **`localStorage`** — sheet/auth (`fw.spike.sheetId`, `fw.spike.sheetGid`, `fw.spike.email`); AI context (`fw_gemini_context`, `fw_gemini_fitness_context`); ready-flags (`fw.aiContext.ready`, `fw.dailyTargets.ready`); profile + goal (`fw_cal_sex`, `fw_cal_age`, `fw_cal_height`, `fw_goal_kg_per_week`, `fw_goal_weekend_ratio`, `fw_goal_weekend_days`).
+  - `Metadata` — `A1/B1` schema version, `A2/B2` back-dating convention, `A3:B5` profile, plus AI-context rows below. (`A6:B8` formerly held a weekly-goal target, retired in v1.1.0; the sync now blanks those rows.)
+  - `DailyTargets` — `date, target_kcal, weight_avg_kg, window_days`. Maintenance kcal = Mifflin-St Jeor BMR × the activity multiplier (default 1.3, NEAT-adjusted sedentary baseline; editable + effective-dated in Settings; logged activity adds on top) from the 7-day trailing avg weight (the 7 calendar days strictly before the date).
+- **`localStorage`** — sheet/auth (`fw.spike.sheetId`, `fw.spike.sheetGid`, `fw.spike.email`); AI context (`fw_gemini_context`, `fw_gemini_fitness_context`); ready-flags (`fw.aiContext.ready`, `fw.dailyTargets.ready`); profile (`fw_cal_sex`, `fw_cal_age`, `fw_cal_height`); activity baseline (`fw_activity_multiplier` current scalar + `fw_activity_multiplier_log` effective-dated breakpoints).
 - **`sessionStorage`** — `fw.sync.token` (cached OAuth token across SW-triggered reloads).
 
 ### Maintaining this map

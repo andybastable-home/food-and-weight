@@ -365,16 +365,14 @@ async function pullContextFromSheet() {
   }
 }
 
-// Profile (sex/age/height) and Weekly Goal (kg/wk, weekend ratio, weekend days)
-// live in Metadata!A3:B8 as key/value rows.
+// Profile (sex/age/height) lives in Metadata!A3:B5 as key/value rows. Rows A6:B8
+// formerly held a weekly-goal target (kg/wk, weekend ratio, weekend days), retired
+// in v1.1.0 — the push blanks them so the stale values clear out and stay gone.
 const PROFILE_GOAL_RANGE = 'Metadata!A3:B8';
 const PROFILE_GOAL_KEY_TO_STORAGE = {
   profile_sex: 'fw_cal_sex',
   profile_age: 'fw_cal_age',
   profile_height_cm: 'fw_cal_height',
-  goal_weekly_kg: 'fw_goal_kg_per_week',
-  goal_weekend_ratio: 'fw_goal_weekend_ratio',
-  goal_weekend_days: 'fw_goal_weekend_days',
 };
 
 async function pushProfileAndGoalToSheet() {
@@ -383,6 +381,8 @@ async function pushProfileAndGoalToSheet() {
     sheetKey,
     localStorage.getItem(storageKey) ?? '',
   ]);
+  // Blank the three retired weekly-goal rows (A6:B8) so old values don't linger.
+  while (values.length < 6) values.push(['', '']);
   try {
     await apiCall(
       `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${PROFILE_GOAL_RANGE}?valueInputOption=RAW`,
